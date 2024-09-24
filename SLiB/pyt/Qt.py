@@ -829,7 +829,7 @@ def _none():
     Qt.QtCompat.loadUi = lambda fname: None
     Qt.QtCompat.setSectionResizeMode = lambda *args, **kwargs: None
 
-    for submodule in _common_members.keys():
+    for submodule in list(_common_members.keys()):
         setattr(Qt, submodule, Mock())
         setattr(Qt, "_" + submodule, Mock())
 
@@ -958,7 +958,7 @@ def _install():
         raise ImportError("No Qt binding were found.")
 
     # Install individual members
-    for name, members in _common_members.items():
+    for name, members in list(_common_members.items()):
         try:
             their_submodule = getattr(Qt, "_%s" % name)
         except AttributeError:

@@ -1,7 +1,7 @@
-from cStringIO import StringIO
+from io import StringIO
 
-import _response
-import _urllib2_fork
+from . import _response
+from . import _urllib2_fork
 
 
 # GzipConsumer was taken from Fredrik Lundh's effbot.org-0.1-20041009 library

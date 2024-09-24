@@ -11,8 +11,8 @@ COPYING.txt included with the distribution).
 import logging
 import time
 
-from _clientcookie import CookieJar, Cookie, MappingIterator
-from _util import isstringlike, experimental
+from ._clientcookie import CookieJar, Cookie, MappingIterator
+from ._util import isstringlike, experimental
 debug = logging.getLogger("mechanize.cookies").debug
 
 
@@ -162,10 +162,10 @@ CREATE TABLE IF NOT EXISTS moz_cookies (id INTEGER PRIMARY KEY, name TEXT,
         if cookie.discard:
             expires = ""
 
-        domain = unicode(cookie.domain)
-        path = unicode(cookie.path)
-        name = unicode(cookie.name)
-        value = unicode(cookie.value)
+        domain = str(cookie.domain)
+        path = str(cookie.path)
+        name = str(cookie.name)
+        value = str(cookie.value)
         secure = bool(int(cookie.secure))
 
         if value is None:

@@ -20,10 +20,10 @@ COPYING.txt included with the distribution).
 
 import time, re, logging
 
-from _clientcookie import reraise_unmasked_exceptions, FileCookieJar, Cookie, \
+from ._clientcookie import reraise_unmasked_exceptions, FileCookieJar, Cookie, \
      MISSING_FILENAME_TEXT, LoadError
-from _headersutil import join_header_words, split_header_words
-from _util import iso2time, time2isoz
+from ._headersutil import join_header_words, split_header_words
+from ._util import iso2time, time2isoz
 
 debug = logging.getLogger("mechanize").debug
 

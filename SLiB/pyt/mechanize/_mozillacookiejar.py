@@ -11,7 +11,7 @@ COPYING.txt included with the distribution).
 
 import re, time, logging
 
-from _clientcookie import reraise_unmasked_exceptions, FileCookieJar, Cookie, \
+from ._clientcookie import reraise_unmasked_exceptions, FileCookieJar, Cookie, \
      MISSING_FILENAME_TEXT, LoadError
 debug = logging.getLogger("ClientCookie").debug
 

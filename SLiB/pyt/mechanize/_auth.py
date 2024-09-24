@@ -9,7 +9,7 @@ included with the distribution).
 
 """
 
-from _urllib2_fork import HTTPPasswordMgr
+from ._urllib2_fork import HTTPPasswordMgr
 
 
 # TODO: stop deriving from HTTPPasswordMgr
@@ -17,7 +17,7 @@ class HTTPProxyPasswordMgr(HTTPPasswordMgr):
     # has default realm and host/port
     def add_password(self, realm, uri, user, passwd):
         # uri could be a single URI or a sequence
-        if uri is None or isinstance(uri, basestring):
+        if uri is None or isinstance(uri, str):
             uris = [uri]
         else:
             uris = uri
@@ -36,7 +36,7 @@ class HTTPProxyPasswordMgr(HTTPPasswordMgr):
                 authinfo_by_domain = self.passwd.get(realm, {})
                 for default_port in True, False:
                     reduced_authuri = self.reduce_uri(authuri, default_port)
-                    for uri, authinfo in authinfo_by_domain.iteritems():
+                    for uri, authinfo in authinfo_by_domain.items():
                         if uri is None and not default_uri:
                             continue
                         if self.is_suburi(uri, reduced_authuri):

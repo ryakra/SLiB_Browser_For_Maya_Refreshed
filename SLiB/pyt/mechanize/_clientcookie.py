@@ -32,7 +32,7 @@ COPYING.txt included with the distribution).
 
 """
 
-import sys, re, copy, time, urllib, types, logging
+import sys, re, copy, time, urllib.request, urllib.parse, urllib.error, types, logging
 try:
     import threading
     _threading = threading; del threading
@@ -44,9 +44,9 @@ MISSING_FILENAME_TEXT = ("a filename was not supplied (nor was the CookieJar "
                          "instance initialised with one)")
 DEFAULT_HTTP_PORT = "80"
 
-from _headersutil import split_header_words, parse_ns_headers
-from _util import isstringlike
-import _rfc3986
+from ._headersutil import split_header_words, parse_ns_headers
+from ._util import isstringlike
+from . import _rfc3986
 
 debug = logging.getLogger("mechanize.cookies").debug
 
@@ -63,8 +63,8 @@ def reraise_unmasked_exceptions(unmasked=()):
     if issubclass(etype, unmasked):
         raise
     # swallowed an exception
-    import traceback, StringIO
-    f = StringIO.StringIO()
+    import traceback, io
+    f = io.StringIO()
     traceback.print_exc(None, f)
     msg = f.getvalue()
     warnings.warn("mechanize bug!\n%s" % msg, stacklevel=2)
@@ -227,9 +227,9 @@ def escape_path(path):
     # And here, kind of: draft-fielding-uri-rfc2396bis-03
     # (And in draft IRI specification: draft-duerst-iri-05)
     # (And here, for new URI schemes: RFC 2718)
-    if isinstance(path, types.UnicodeType):
+    if isinstance(path, str):
         path = path.encode("utf-8")
-    path = urllib.quote(path, HTTP_PATH_SAFE)
+    path = urllib.parse.quote(path, HTTP_PATH_SAFE)
     path = ESCAPED_CHAR_RE.sub(uppercase_escaped_char, path)
     return path
 
@@ -389,13 +389,13 @@ class Cookie:
         self._rest = copy.copy(rest)
 
     def has_nonstandard_attr(self, name):
-        return self._rest.has_key(name)
+        return name in self._rest
     def get_nonstandard_attr(self, name, default=None):
         return self._rest.get(name, default)
     def set_nonstandard_attr(self, name, value):
         self._rest[name] = value
     def nonstandard_attr_keys(self):
-        return self._rest.keys()
+        return list(self._rest.keys())
 
     def is_expired(self, now=None):
         if now is None: now = time.time()
@@ -967,9 +967,9 @@ class DefaultCookiePolicy(CookiePolicy):
 
 
 def vals_sorted_by_key(adict):
-    keys = adict.keys()
+    keys = list(adict.keys())
     keys.sort()
-    return map(adict.get, keys)
+    return list(map(adict.get, keys))
 
 class MappingIterator:
     """Iterates over nested mapping, depth-first, in sorted order by key."""
@@ -978,7 +978,7 @@ class MappingIterator:
 
     def __iter__(self): return self
 
-    def next(self):
+    def __next__(self):
         # this is hairy because of lack of generators
         while 1:
             try:
@@ -1070,11 +1070,11 @@ class CookieJar:
             return []
         debug("Checking %s for cookies to return", domain)
         cookies_by_path = self._cookies[domain]
-        for path in cookies_by_path.keys():
+        for path in list(cookies_by_path.keys()):
             if not self._policy.path_return_ok(path, request):
                 continue
             cookies_by_name = cookies_by_path[path]
-            for cookie in cookies_by_name.values():
+            for cookie in list(cookies_by_name.values()):
                 if not self._policy.return_ok(cookie, request):
                     debug("   not returning cookie")
                     continue
@@ -1108,7 +1108,7 @@ class CookieJar:
         # XXX document that implied interface, or provide another way of
         # implementing cookiejars than subclassing
         cookies = []
-        for domain in self._cookies.keys():
+        for domain in list(self._cookies.keys()):
             cookies.extend(self._cookies_for_domain(domain, request))
         return cookies
 
@@ -1254,7 +1254,7 @@ class CookieJar:
                     # boolean cookie-attribute is present, but has no value
                     # (like "discard", rather than "port=80")
                     v = True
-                if standard.has_key(k):
+                if k in standard:
                     # only first value is significant
                     continue
                 if k == "domain":
@@ -1457,8 +1457,8 @@ class CookieJar:
 
                 def no_matching_rfc2965(ns_cookie, lookup=lookup):
                     key = ns_cookie.domain, ns_cookie.path, ns_cookie.name
-                    return not lookup.has_key(key)
-                ns_cookies = filter(no_matching_rfc2965, ns_cookies)
+                    return key not in lookup
+                ns_cookies = list(filter(no_matching_rfc2965, ns_cookies))
 
             if ns_cookies:
                 cookies.extend(ns_cookies)
@@ -1494,9 +1494,9 @@ class CookieJar:
         cookie: mechanize.Cookie instance
         """
         c = self._cookies
-        if not c.has_key(cookie.domain): c[cookie.domain] = {}
+        if cookie.domain not in c: c[cookie.domain] = {}
         c2 = c[cookie.domain]
-        if not c2.has_key(cookie.path): c2[cookie.path] = {}
+        if cookie.path not in c2: c2[cookie.path] = {}
         c3 = c2[cookie.path]
         c3[cookie.name] = cookie
 
@@ -1603,7 +1603,7 @@ class CookieJar:
             "CookieJar.__getitem__ only supports sequential iteration")
         self._prev_getitem_index = i
         try:
-            return self._getitem_iterator.next()
+            return next(self._getitem_iterator)
         except StopIteration:
             raise IndexError()
 

@@ -122,7 +122,7 @@ def checkAttribs(sourceMAT, destMAT):
         ("refl_gloss1","secondaryReflectionGlossiness")]
     
     for a in mtlAttrList:
-        print '...checking Attribute >>> ' + a[1]
+        print('...checking Attribute >>> ' + a[1])
         if cmds.objExists(sourceMAT + '.' + a[1]):
             if a[1] == 'fresnelIOR':
                 if cmds.getAttr(sourceMAT + '.lockFresnelIORToRefractionIOR'):
@@ -134,7 +134,7 @@ def checkAttribs(sourceMAT, destMAT):
                 
                 #BUMP OR NORMAL MAP
                 if a[1] == 'bm':
-                    print 'Bump Slot -  Connection found'
+                    print('Bump Slot -  Connection found')
                     if cmds.nodeType(whatConnection.split('.')[0]) == 'file':
                         connNode = whatConnection.split('.')[0]
                         if cmds.getAttr(sourceMAT + '.bumpMapType') == 0:
@@ -199,11 +199,11 @@ def collectMats():
             else:
                 skinMat.append(e)
                 
-    print str(len(blendMat)) + ' VRayBlendMtl'
-    print str(len(normMat)) + ' VRayMtl'
-    print str(len(carMat)) + ' VRayCarPaintMtl'
-    print str(len(sssMat)) + ' VRayFastSSS2'
-    print str(len(skinMat)) + ' VRaySkinMtl'
+    print(str(len(blendMat)) + ' VRayBlendMtl')
+    print(str(len(normMat)) + ' VRayMtl')
+    print(str(len(carMat)) + ' VRayCarPaintMtl')
+    print(str(len(sssMat)) + ' VRayFastSSS2')
+    print(str(len(skinMat)) + ' VRaySkinMtl')
             
 
 
@@ -214,12 +214,12 @@ def SLiB_Convert():
         cmds.textScrollList('ConvertScrollList', e=1, si=str(len(blendMat)) + ' VRayBlendMtl')
         for e in blendMat:
             cmds.progressBar('ConvertProgress', e=1, step=1)
-            print 'converting Material >>> ' + e + ' [ ' + cmds.nodeType(e) + ' ]'
+            print('converting Material >>> ' + e + ' [ ' + cmds.nodeType(e) + ' ]')
             blendMat_RS = cmds.shadingNode('RedshiftMaterialBlender', asShader=1, n=e + '_to_RS')
             baseMaterial = cmds.listConnections(e + '.bm')
             baseMaterialAdditive = cmds.getAttr(e + '.am')
             if baseMaterial:
-                print 'converting BaseMaterial of ' + e
+                print('converting BaseMaterial of ' + e)
                 baseMaterial = baseMaterial[0]
                 baseMaterial_RS = cmds.shadingNode(dispatch(baseMaterial), asShader=1, n=baseMaterial + '_to_RS')
                 checkAttribs(baseMaterial, baseMaterial_RS)
@@ -229,13 +229,13 @@ def SLiB_Convert():
                 coatMaterial = cmds.listConnections(e + '.cm' + str(r))
                 blendAmount = cmds.listConnections(e + '.blend_amount_' + str(r))
                 if coatMaterial:
-                    print 'converting CoatMaterial of ' + e + ' [ ' + str(r) + ' ]'
+                    print('converting CoatMaterial of ' + e + ' [ ' + str(r) + ' ]')
                     coatMaterial = coatMaterial[0]
                     coatMaterial_RS = cmds.shadingNode(dispatch(coatMaterial), asShader=1, n=coatMaterial + '_to_RS')
                     checkAttribs(coatMaterial, coatMaterial_RS)
                     cmds.connectAttr(coatMaterial_RS + '.outColor', blendMat_RS + '.layerColor' + str(r+1), f=1)
                 if blendAmount:
-                    print 'converting BlendAmount of ' + e + ' [ ' + str(r) + ' ]'
+                    print('converting BlendAmount of ' + e + ' [ ' + str(r) + ' ]')
                     blendAmount = blendAmount[0]
                     if cmds.nodeType(blendAmount) == 'file':
                         cmds.connectAttr(blendAmount + '.outColor', blendMat_RS + '.blendColor' + str(r+1), f=1)
@@ -247,7 +247,7 @@ def SLiB_Convert():
                         cmds.setAttr(blendMat_RS + '.additiveMode' + str(r+1), 1)
                                     
             assignMaterial(e, blendMat_RS)
-            print e + ' successfully converted!'
+            print(e + ' successfully converted!')
             cmds.progressBar('ConvertProgress', e=1, pr=0)
         
     if normMat or carMat or sssMat or skinMat:
@@ -263,12 +263,12 @@ def SLiB_Convert():
                 cmds.textScrollList('ConvertScrollList', e=1, si=str(len(skinMat)) + ' VRaySkinMtl')
 
             cmds.progressBar('ConvertProgress', e=1, step=1)
-            print 'converting Material >>> ' + e + ' [ ' + cmds.nodeType(e) + ' ]'
+            print('converting Material >>> ' + e + ' [ ' + cmds.nodeType(e) + ' ]')
             convMaterial = cmds.shadingNode(dispatch(e), asShader=1, n=e + '_to_RS')
             checkAttribs(e, convMaterial)
             
             assignMaterial(e, convMaterial)
-            print e + ' successfully converted!'
+            print(e + ' successfully converted!')
             cmds.select(cl=1)
         cmds.progressBar('ConvertProgress', e=1, pr=0)
         

@@ -14,8 +14,8 @@ from types import StringType
 from types import UnicodeType
 STRING_TYPES = StringType, UnicodeType
 
-from _util import http2time
-import _rfc3986
+from ._util import http2time
+from . import _rfc3986
 
 
 def is_html_file_extension(url, allow_xhtml):

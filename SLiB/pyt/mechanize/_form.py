@@ -59,24 +59,24 @@ __all__ = ['AmbiguityError', 'CheckboxControl', 'Control',
            'SubmitButtonControl', 'SubmitControl', 'TextControl',
            'TextareaControl', 'XHTMLCompatibleFormParser']
 
-import HTMLParser
-from cStringIO import StringIO
+import html.parser
+from io import StringIO
 import inspect
 import logging
 import random
 import re
 import sys
-import urllib
-import urlparse
+import urllib.request, urllib.parse, urllib.error
+import urllib.parse
 import warnings
 
-import _beautifulsoup
-import _request
+from . import _beautifulsoup
+from . import _request
 
 # from Python itself, for backwards compatibility of raised exceptions
 import sgmllib
 # bundled copy of sgmllib
-import _sgmllib_copy
+from . import _sgmllib_copy
 
 
 VERSION = "0.2.11"
@@ -146,7 +146,7 @@ def unescape_charref(data, encoding):
     name, base = data, 10
     if name.startswith("x"):
         name, base= name[1:], 16
-    uc = unichr(int(name, base))
+    uc = chr(int(name, base))
     if encoding is None:
         return uc
     else:
@@ -157,21 +157,21 @@ def unescape_charref(data, encoding):
         return repl
 
 def get_entitydefs():
-    import htmlentitydefs
+    import html.entities
     from codecs import latin_1_decode
     entitydefs = {}
     try:
-        htmlentitydefs.name2codepoint
+        html.entities.name2codepoint
     except AttributeError:
         entitydefs = {}
-        for name, char in htmlentitydefs.entitydefs.items():
+        for name, char in list(html.entities.entitydefs.items()):
             uc = latin_1_decode(char)[0]
             if uc.startswith("&#") and uc.endswith(";"):
                 uc = unescape_charref(uc[2:-1], None)
             entitydefs["&%s;" % name] = uc
     else:
-        for name, codepoint in htmlentitydefs.name2codepoint.items():
-            entitydefs["&%s;" % name] = unichr(codepoint)
+        for name, codepoint in list(html.entities.name2codepoint.items()):
+            entitydefs["&%s;" % name] = chr(codepoint)
     return entitydefs
 
 
@@ -193,7 +193,7 @@ def isstringlike(x):
 def choose_boundary():
     """Return a string usable as a multipart boundary."""
     # follow IE and firefox
-    nonce = "".join([str(random.randint(0, sys.maxint-1)) for i in 0,1,2])
+    nonce = "".join([str(random.randint(0, sys.maxsize-1)) for i in (0,1,2)])
     return "-"*27 + nonce
 
 # This cut-n-pasted MimeWriter from standard library is here so can add
@@ -354,7 +354,7 @@ class ItemCountError(ValueError): pass
 # raised by versions of ClientForm <= 0.2.5
 # TODO: move to _html
 class ParseError(sgmllib.SGMLParseError,
-                 HTMLParser.HTMLParseError):
+                 html.parser.HTMLParseError):
 
     def __init__(self, *args, **kwds):
         Exception.__init__(self, *args, **kwds)
@@ -487,8 +487,8 @@ class _AbstractFormParser:
 
         self._option = {}
         self._option.update(d)
-        if (self._optgroup and self._optgroup.has_key("disabled") and
-            not self._option.has_key("disabled")):
+        if (self._optgroup and "disabled" in self._optgroup and
+            "disabled" not in self._option):
             self._option["disabled"] = None
 
     def _end_option(self):
@@ -498,9 +498,9 @@ class _AbstractFormParser:
 
         contents = self._option.get("contents", "").strip()
         self._option["contents"] = contents
-        if not self._option.has_key("value"):
+        if "value" not in self._option:
             self._option["value"] = contents
-        if not self._option.has_key("label"):
+        if "label" not in self._option:
             self._option["label"] = contents
         # stuff dict of SELECT HTML attrs into a special private key
         #  (gets deleted again later)
@@ -588,7 +588,7 @@ class _AbstractFormParser:
         else:
             return
 
-        if data and not map.has_key(key):
+        if data and key not in map:
             # according to
             # http://www.w3.org/TR/html4/appendix/notes.html#h-B.3.1 line break
             # immediately after start tags or immediately before end tags must
@@ -660,7 +660,7 @@ class _AbstractFormParser:
     def unescape_attrs(self, attrs):
         #debug("%s", attrs)
         escaped_attrs = {}
-        for key, val in attrs.items():
+        for key, val in list(attrs.items()):
             try:
                 val.items
             except AttributeError:
@@ -674,17 +674,17 @@ class _AbstractFormParser:
     def unknown_charref(self, ref): self.handle_data("&#%s;" % ref)
 
 
-class XHTMLCompatibleFormParser(_AbstractFormParser, HTMLParser.HTMLParser):
+class XHTMLCompatibleFormParser(_AbstractFormParser, html.parser.HTMLParser):
     """Good for XHTML, bad for tolerance of incorrect HTML."""
     # thanks to Michael Howitz for this!
     def __init__(self, entitydefs=None, encoding=DEFAULT_ENCODING):
-        HTMLParser.HTMLParser.__init__(self)
+        html.parser.HTMLParser.__init__(self)
         _AbstractFormParser.__init__(self, entitydefs, encoding)
 
     def feed(self, data):
         try:
-            HTMLParser.HTMLParser.feed(self, data)
-        except HTMLParser.HTMLParseError, exc:
+            html.parser.HTMLParser.feed(self, data)
+        except html.parser.HTMLParseError as exc:
             raise ParseError(exc)
 
     def start_option(self, attrs):
@@ -725,7 +725,7 @@ class XHTMLCompatibleFormParser(_AbstractFormParser, HTMLParser.HTMLParser):
         return attrs  # ditto
 
     def close(self):
-        HTMLParser.HTMLParser.close(self)
+        html.parser.HTMLParser.close(self)
         self.end_body()
 
 
@@ -756,7 +756,7 @@ class FormParser(_AbstractSgmllibParser, _sgmllib_copy.SGMLParser):
     def feed(self, data):
         try:
             _sgmllib_copy.SGMLParser.feed(self, data)
-        except _sgmllib_copy.SGMLParseError, exc:
+        except _sgmllib_copy.SGMLParseError as exc:
             raise ParseError(exc)
 
     def close(self):
@@ -779,7 +779,7 @@ class _AbstractBSFormParser(_AbstractSgmllibParser):
     def feed(self, data):
         try:
             self.bs_base_class.feed(self, data)
-        except _sgmllib_copy.SGMLParseError, exc:
+        except _sgmllib_copy.SGMLParseError as exc:
             raise ParseError(exc)
 
     def close(self):
@@ -818,9 +818,9 @@ def ParseResponseEx(response,
                     encoding=DEFAULT_ENCODING,
 
                     # private
-                    _urljoin=urlparse.urljoin,
-                    _urlparse=urlparse.urlparse,
-                    _urlunparse=urlparse.urlunparse,
+                    _urljoin=urllib.parse.urljoin,
+                    _urlparse=urllib.parse.urlparse,
+                    _urlunparse=urllib.parse.urlunparse,
                     ):
     """Identical to ParseResponse, except that:
 
@@ -852,9 +852,9 @@ def ParseFileEx(file, base_uri,
                 encoding=DEFAULT_ENCODING,
 
                 # private
-                _urljoin=urlparse.urljoin,
-                _urlparse=urlparse.urlparse,
-                _urlunparse=urlparse.urlunparse,
+                _urljoin=urllib.parse.urljoin,
+                _urlparse=urllib.parse.urlparse,
+                _urlunparse=urllib.parse.urlunparse,
                 ):
     """Identical to ParseFile, except that:
 
@@ -968,9 +968,9 @@ def _ParseFileEx(file, base_uri,
                  entitydefs=None,
                  backwards_compat=True,
                  encoding=DEFAULT_ENCODING,
-                 _urljoin=urlparse.urljoin,
-                 _urlparse=urlparse.urlparse,
-                 _urlunparse=urlparse.urlunparse,
+                 _urljoin=urllib.parse.urljoin,
+                 _urlparse=urllib.parse.urlparse,
+                 _urlunparse=urllib.parse.urlunparse,
                  ):
     if backwards_compat:
         deprecation("operating in backwards-compatibility mode", 1)
@@ -979,7 +979,7 @@ def _ParseFileEx(file, base_uri,
         data = file.read(CHUNK)
         try:
             fp.feed(data)
-        except ParseError, e:
+        except ParseError as e:
             e.base_uri = base_uri
             raise
         if len(data) != CHUNK: break
@@ -1193,16 +1193,16 @@ class ScalarControl(Control):
         self.__dict__["type"] = type.lower()
         self.__dict__["name"] = name
         self._value = attrs.get("value")
-        self.disabled = attrs.has_key("disabled")
-        self.readonly = attrs.has_key("readonly")
+        self.disabled = "disabled" in attrs
+        self.readonly = "readonly" in attrs
         self.id = attrs.get("id")
 
         self.attrs = attrs.copy()
 
         self._clicked = False
 
-        self._urlparse = urlparse.urlparse
-        self._urlunparse = urlparse.urlunparse
+        self._urlparse = urllib.parse.urlparse
+        self._urlunparse = urllib.parse.urlunparse
 
     def __getattr__(self, name):
         if name == "value":
@@ -1426,7 +1426,7 @@ class IsindexControl(ScalarControl):
         # Submission of ISINDEX is explained in the HTML 3.2 spec, though.
         parts = self._urlparse(form.action)
         rest, (query, frag) = parts[:-2], parts[-2:]
-        parts = rest + (urllib.quote_plus(self.value), None)
+        parts = rest + (urllib.parse.quote_plus(self.value), None)
         url = self._urlunparse(parts)
         req_data = url, None, []
 
@@ -1498,7 +1498,7 @@ class Item:
             "_labels": label and [label] or [],
             "attrs": attrs,
             "_control": control,
-            "disabled": attrs.has_key("disabled"),
+            "disabled": "disabled" in attrs,
             "_selected": False,
             "id": attrs.get("id"),
             "_index": index,
@@ -1552,7 +1552,7 @@ class Item:
     def __repr__(self):
         # XXX appending the attrs without distinguishing them from name and id
         # is silly
-        attrs = [("name", self.name), ("id", self.id)]+self.attrs.items()
+        attrs = [("name", self.name), ("id", self.id)]+list(self.attrs.items())
         return "<%s %s>" % (
             self.__class__.__name__,
             " ".join(["%s=%r" % (k, v) for k, v in attrs])
@@ -1560,7 +1560,7 @@ class Item:
 
 def disambiguate(items, nr, **kwds):
     msgs = []
-    for key, value in kwds.items():
+    for key, value in list(kwds.items()):
         msgs.append("%s=%r" % (key, value))
     msg = " ".join(msgs)
     if not items:
@@ -2030,11 +2030,11 @@ class ListControl(Control):
                     item.selected and (not item.disabled or compat)]
         names = {}
         for nn in value:
-            if nn in names.keys():
+            if nn in list(names.keys()):
                 names[nn] += 1
             else:
                 names[nn] = 1
-        for name, count in names.items():
+        for name, count in list(names.items()):
             on, off = self._get_items(name, count)
             for i in range(count):
                 if on:
@@ -2166,7 +2166,7 @@ class RadioControl(ListControl):
                              called_as_base_class=True, index=index)
         self.__dict__["multiple"] = False
         o = Item(self, attrs, index)
-        o.__dict__["_selected"] = attrs.has_key("checked")
+        o.__dict__["_selected"] = "checked" in attrs
 
     def fixup(self):
         ListControl.fixup(self)
@@ -2199,7 +2199,7 @@ class CheckboxControl(ListControl):
                              called_as_base_class=True, index=index)
         self.__dict__["multiple"] = True
         o = Item(self, attrs, index)
-        o.__dict__["_selected"] = attrs.has_key("checked")
+        o.__dict__["_selected"] = "checked" in attrs
 
     def get_labels(self):
         return []
@@ -2267,7 +2267,7 @@ class SelectControl(ListControl):
         self.attrs = attrs["__select"].copy()
         self.__dict__["_label"] = _get_label(self.attrs)
         self.__dict__["id"] = self.attrs.get("id")
-        self.__dict__["multiple"] = self.attrs.has_key("multiple")
+        self.__dict__["multiple"] = "multiple" in self.attrs
         # the majority of the contents, label, and value dance already happened
         contents = attrs.get("contents")
         attrs = attrs.copy()
@@ -2275,12 +2275,12 @@ class SelectControl(ListControl):
 
         ListControl.__init__(self, type, name, self.attrs, select_default,
                              called_as_base_class=True, index=index)
-        self.disabled = self.attrs.has_key("disabled")
-        self.readonly = self.attrs.has_key("readonly")
-        if attrs.has_key("value"):
+        self.disabled = "disabled" in self.attrs
+        self.readonly = "readonly" in self.attrs
+        if "value" in attrs:
             # otherwise it is a marker 'select started' token
             o = Item(self, attrs, index)
-            o.__dict__["_selected"] = attrs.has_key("selected")
+            o.__dict__["_selected"] = "selected" in attrs
             # add 'label' label and contents label, if different.  If both are
             # provided, the 'label' label is used for display in HTML 
             # 4.0-compliant browsers (and any lower spec? not sure) while the
@@ -2673,8 +2673,8 @@ class HTMLForm:
 
         self.backwards_compat = backwards_compat  # note __setattr__
 
-        self._urlunparse = urlparse.urlunparse
-        self._urlparse = urlparse.urlparse
+        self._urlunparse = urllib.parse.urlunparse
+        self._urlparse = urllib.parse.urlparse
 
     def __getattr__(self, name):
         if name == "backwards_compat":
@@ -2780,7 +2780,7 @@ class HTMLForm:
         control = self.find_control(name)
         try:
             control.value = value
-        except AttributeError, e:
+        except AttributeError as e:
             raise ValueError(str(e))
 
     def get_value(self,
@@ -3233,14 +3233,14 @@ class HTMLForm:
             if self.enctype != "application/x-www-form-urlencoded":
                 raise ValueError(
                     "unknown GET form encoding type '%s'" % self.enctype)
-            parts = rest + (urllib.urlencode(self._pairs()), None)
+            parts = rest + (urllib.parse.urlencode(self._pairs()), None)
             uri = self._urlunparse(parts)
             return uri, None, []
         elif method == "POST":
             parts = rest + (query, None)
             uri = self._urlunparse(parts)
             if self.enctype == "application/x-www-form-urlencoded":
-                return (uri, urllib.urlencode(self._pairs()),
+                return (uri, urllib.parse.urlencode(self._pairs()),
                         [("Content-Type", self.enctype)])
             elif self.enctype == "multipart/form-data":
                 data = StringIO()

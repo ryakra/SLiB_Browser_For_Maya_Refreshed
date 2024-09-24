@@ -13,6 +13,7 @@ import os
 import imp
 import maya.cmds as cmds
 import maya.mel as mel
+import importlib
 
 dirPath = os.path.dirname(cmds.pluginInfo('SLiB', q=1, path=1)) + '/SLiB/'
 envFile = os.path.dirname(cmds.pluginInfo('SLiB', q=1, path=1)) + '/SLiB.env'
@@ -57,15 +58,15 @@ else:
 
 def initializePlugin(obj):
     import SLiBSetupPy
-    reload(SLiBSetupPy)
+    importlib.reload(SLiBSetupPy)
     SLiBSetupPy.SLiBSetupLoad()
-    print 'SLiB: >>> Plug-In successfully loaded!'
+    print('SLiB: >>> Plug-In successfully loaded!')
 
 def uninitializePlugin(obj):
     import SLiBSetupPy
-    reload(SLiBSetupPy)
+    importlib.reload(SLiBSetupPy)
     SLiBSetupPy.SLiBSetupUnLoad()
-    print "SLiB: >>> Plug-In unloaded!"
+    print("SLiB: >>> Plug-In unloaded!")
     
 def setPath():
     libPath = cmds.fileDialog2(fm=2)

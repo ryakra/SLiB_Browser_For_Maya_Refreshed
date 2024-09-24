@@ -26,13 +26,14 @@ from subprocess import check_call
 import subprocess
 import mechanize
 import zipfile
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import pymel.core as pm
 import Qt
-import thread
+import _thread
 
 import SLiBUtilities as SLiB
-reload(SLiB)
+import importlib
+importlib.reload(SLiB)
 
 if '2017' in SLiB.gib('mayaVersion'):
     WorkspaceName = 'WorkspaceBrowser'
@@ -261,7 +262,7 @@ def SLiB_ObjectImportProc(item):
         SLiB.messager(os.path.basename(item) + ' imported!', 'green')
 
         root = cmds.ls(imported, assemblies=1)
-        print root
+        print(root)
 
         if not reusable:
             SLiB_AutoRELtoABS(root)
@@ -357,7 +358,7 @@ def SLiB_AutoCopyToProject(root):
 
 #EXPORT
 def SLiB_BrowserExport():
-    print 'SLiB >> starting EXPORT'
+    print('SLiB >> starting EXPORT')
     if len(SLiB.gib('name')) == 0:
         SLiB.messager('Please enter a Name!', 'red')
         sys.exit()
@@ -387,7 +388,7 @@ def SLiB_BrowserExport():
             sys.exit()
 
         if SLiB.gib('mainCat') == 'shader': 
-            print 'SLiB >> Item = SHADER'
+            print('SLiB >> Item = SHADER')
             shadingGroups = list(set(cmds.listConnections(shapesInSel, type='shadingEngine')))
             selMaterials = list(set(cmds.ls(cmds.listConnections(shadingGroups), mat=1)))
 
@@ -410,7 +411,7 @@ def SLiB_BrowserExport():
                 SLiB_ExportShader(newShaderName, shapesInSel, shadingGroups[0])
 
         else:
-            print 'SLiB >> Item = OBJECT'
+            print('SLiB >> Item = OBJECT')
             SLiB_ExportObject(newShaderName, shapesInSel)
     else:
         SLiB.messager('Please select a Category!', 'red')
@@ -424,7 +425,7 @@ def SLiB_ExportShader(newShaderName, shapesInSel, shadingGrp):
         os.mkdir(assetPath)
     
     ### EXPORT WITH TEXTURE(S)
-    print 'SLiB >> exporting TEXTURE(S)...'
+    print('SLiB >> exporting TEXTURE(S)...')
     if not cmds.optionMenu('exportTEX', q=1, v=1) == 'no Textures':
         SLiB_ExportTex()
 
@@ -436,7 +437,7 @@ def SLiB_ExportShader(newShaderName, shapesInSel, shadingGrp):
         type = 'mayaBinary'
     
     cmds.select(shadingGrp, ne=1)
-    print shadingGrp
+    print(shadingGrp)
     if expExt == '.obj':
         cmds.confirmDialog(m='No Shader Export as OBJ!')
     else:
@@ -500,7 +501,7 @@ def SLiB_ExportObject(newShaderName, shapesInSel):
 def SLiB_ExportTex():
     expTEX = SLiB_TexList()
     if expTEX:
-        print 'SLiB >> ' + str(len(expTEX)) + ' Texture(s) found'
+        print('SLiB >> ' + str(len(expTEX)) + ' Texture(s) found')
         if cmds.optionMenu('exportTEX', q=1, v=1) == 'with custom Texture Folder':
             textdestination =  os.path.normpath(cmds.textField('SLiB_TEXTFIELD_Texpath', q=1, tx=1))
             if len(textdestination) > 1 and os.path.isdir(textdestination):
@@ -511,7 +512,7 @@ def SLiB_ExportTex():
             textdestination =  SLiB.gib('currLocation') + '/' + SLiB.gib('name') + '/Tex'
             if not os.path.isdir(textdestination):
                 os.mkdir(textdestination)
-                print 'SLiB >> TEX folder created'
+                print('SLiB >> TEX folder created')
                 
         for t in expTEX:
             fileName = os.path.normpath(cmds.getAttr(t + SLiB.gibTexSlot(t)))
@@ -526,7 +527,7 @@ def SLiB_ExportTex():
                         finalPath = SLiB_relPath(finalPath + '|' + t)
                     cmds.setAttr(t + SLiB.gibTexSlot(t), finalPath, type='string')
         
-        print 'SLiB >> ' + str(len(expTEX)) + ' Texture(s) copied'
+        print('SLiB >> ' + str(len(expTEX)) + ' Texture(s) copied')
 
 def SLiB_ExportTextures(x):
     if SLiB.gib('currLocation') != None and SLiB.gib('currLocation') != os.path.normpath(mel.eval('getenv SLiBRARY;') + SLiB.gib('mainCat')):
@@ -736,7 +737,7 @@ def SLiB_ExportMeta(file, mainMat):
     f.write(notes + '\n')
     f.close()
     
-    print 'SLiB >> META file written'
+    print('SLiB >> META file written')
 
 def SLiB_UpdateMeta(mode):
     if cbxList:
@@ -833,7 +834,7 @@ def SLiB_ZoomWin(item):
     if cmds.window('SLiB_ZoomButton', ex=1):
         cmds.deleteUI('SLiB_ZoomButton')
         
-    mayaMainWindow= wrapInstance(long(omui.MQtUtil.mainWindow()), QWidget) 
+    mayaMainWindow= wrapInstance(int(omui.MQtUtil.mainWindow()), QWidget) 
     icon = QtGui.QIcon(item)
     button = QtWidgets.QPushButton(parent=mayaMainWindow)
     button.setObjectName('SLiB_ZoomButton')
@@ -1076,7 +1077,7 @@ class SLiB_OverlayImage(QtWidgets.QWidget):
 def SLiB_ReplaceNotes():
     if cbxList:
         notes = cmds.scrollField('SLiB_TEXTFIELD_Info', q=1, tx=1)
-        notes = notes.replace(u'\u2018', '').replace(u'\u2019', '').replace(u'\u201c','').replace(u'\u201d', '')
+        notes = notes.replace('\u2018', '').replace('\u2019', '').replace('\u201c','').replace('\u201d', '')
         
         for item in cbxList:
             metaFile = os.path.splitext(item)[0] + '.meta'
@@ -1931,7 +1932,7 @@ class SLiBFlowLayout(QtWidgets.QWidget):
                 
             if cbxList:
                 for c in cbxList:
-                    print c + '\n'
+                    print(c + '\n')
                     buttonWidget = scroll.findChild(QWidget, c)
                     label = buttonWidget.findChild(QLabel, c)
                     if len(cbxList) > 1:
@@ -1969,7 +1970,7 @@ class SLiBFlowLayout(QtWidgets.QWidget):
                 
             if cbxList:
                 for c in cbxList:
-                    print c + '\n'
+                    print(c + '\n')
                     buttonWidget = scroll.findChild(QWidget, c)
                     label = buttonWidget.findChild(QLabel, c)
                     if len(cbxList) > 1:
@@ -2375,7 +2376,7 @@ def SLiB_TexPathChangeWarning(path):
                             if os.path.isfile(file):
                                 shutil.copy(file, textdestination)
                                 
-                                print orgfile
+                                print(orgfile)
                                 if '${SLiB' in orgfile:
                                     finalPath = SLiB_relPath(finalPath)
                                 
@@ -2409,7 +2410,7 @@ def SLiB_CustomTexFolder():
         cmds.textField('SLiB_TEXTFIELD_Texpath', e=1, tx=os.path.normpath(customTEX))
         
 def SLiBQuit():
-    print 'SLiB >>> Shutting down Browser Pro...'
+    print('SLiB >>> Shutting down Browser Pro...')
     
     if '2017' not in SLiB.gib('mayaVersion'):
         if cmds.dockControl('slBrowserDock', q=1, ex=1):
@@ -2418,7 +2419,7 @@ def SLiBQuit():
         if cmds.workspaceControl(WorkspaceName, ex=1):
             cmds.deleteUI(WorkspaceName)
             
-    print 'Bye Bye!'
+    print('Bye Bye!')
     
 #BROWSER UI
 def SLiBBrowserUI():
@@ -2505,7 +2506,7 @@ def SLiBBrowserUI():
     cmds.menuItem('about', l='About...', c=lambda *args: SLiB_About())
     
     #SPLITTER
-    slSplitter = wrapInstance(long(omui.MQtUtil.findControl('slSplitter')), QtWidgets.QSplitter)
+    slSplitter = wrapInstance(int(omui.MQtUtil.findControl('slSplitter')), QtWidgets.QSplitter)
     slSplitter.setSizes([155, 4000])
         
     #MAIN TOOLS LAYOUT
@@ -2685,11 +2686,11 @@ def SLiBBrowserUI():
     cmds.iconTextCheckBox('RVLocked', w=32, h=32, mh=0, mw=0, v=0, i=SLiB_img + 'slib_unlocked.png', si=SLiB_img + 'slib_locked.png', p='SLiB_RenderLockLayout', ann=' Lock Preview Image ')
 
     global SLiBThumbsLayout
-    SLiBThumbsLayout = wrapInstance(long(omui.MQtUtil.findLayout('SLiB_thumbsframe')), QtWidgets.QWidget)
+    SLiBThumbsLayout = wrapInstance(int(omui.MQtUtil.findLayout('SLiB_thumbsframe')), QtWidgets.QWidget)
     global SLiBThumbsScrollLayout
     SLiBThumbsScrollLayout = SLiBThumbsLayout.children()[0]
     global RenderViewHolder
-    RenderViewHolder = wrapInstance(long(omui.MQtUtil.findLayout('PrevLayout')), QtWidgets.QWidget)
+    RenderViewHolder = wrapInstance(int(omui.MQtUtil.findLayout('PrevLayout')), QtWidgets.QWidget)
     
     if '2017' not in SLiB.gib('mayaVersion'):
         cmds.showWindow('SLiBBrowserUI')
@@ -2710,7 +2711,7 @@ def SLiBBrowserUI():
     
     SLiB.messager('Browser PRO v2.0 loaded', 'green')
 
-    print 'SLiB >>> Browser PRO v2.0 loaded'
+    print('SLiB >>> Browser PRO v2.0 loaded')
 
 def SLiB_listRenderers():
     cmds.menu('menuRenderer', e=1, dai=1)
@@ -2991,13 +2992,13 @@ def SLiB_CreatePreview():
                 renderer = lines[5].lower()
                 if not renderer in ['arnold', 'mentalray', 'redshift', 'vray']:
                     SLiB.messager('Render Engine not supported for [ ' + os.path.basename(e) + ' ]', 'yellow')
-                    print 'Render Engine not supported for [ ' + os.path.basename(e) + ' ]'
+                    print('Render Engine not supported for [ ' + os.path.basename(e) + ' ]')
                     cbxList.remove(e)
                     errorList.append(e)
 
             else:
                 SLiB.messager('Meta data not found for [ ' + os.path.basename(e) + ' ] - please Metarize item.', 'yellow')
-                print 'Meta data not found for [ ' + os.path.basename(e) + ' ] - please Metarize item.'
+                print('Meta data not found for [ ' + os.path.basename(e) + ' ] - please Metarize item.')
                 cbxList.remove(e)
                 errorList.append(e)
     
@@ -3037,7 +3038,7 @@ def SLiB_CreatePreview():
                 SLiB.messager('Generating Preview Image(s)... (some errors occured - check Script Editor!)', 'yellow')
             else:
                 SLiB.messager('Generating Preview Image(s)... ', 'green')
-            thread.start_new_thread(SLiB_CreatePreviewRender, (previewCat, mode, cam, type))
+            _thread.start_new_thread(SLiB_CreatePreviewRender, (previewCat, mode, cam, type))
         except:
             cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview())
     
@@ -3123,7 +3124,7 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
 
 def SLiB_UpdateBatch(item, selItem, batchList):
     i = batchList.index(item) + 1
-    print (' currently rendering: ' +  str(i) + ' / ' + str(len(batchList)) + ' [ ' +  selItem + ' ] '),
+    print((' currently rendering: ' +  str(i) + ' / ' + str(len(batchList)) + ' [ ' +  selItem + ' ] '), end=' ')
 
 def SLiB_ThreadEnd(previewCat):
     if SLiB.gib('currLocation') == previewCat:
@@ -3808,7 +3809,7 @@ class SLiBListTextures(QtWidgets.QFormLayout):
         item = os.path.normpath(cbx.objectName())
         file = os.path.normpath(cbx.objectName().split('|')[0])
         imageName = os.path.normpath(SLiB_absPath(file))
-        print item
+        print(item)
         
         if QtWidgets.qApp.mouseButtons() & QtCore.Qt.RightButton:
             pass
@@ -3945,7 +3946,7 @@ def SLiB_FindMissingTextures():
                         newpath = os.path.join(root,name)
                         if not '_THUMBS' in newpath:
                             cmds.setAttr(node + SLiB.gibTexSlot(node), newpath, type='string')
-                            print '>>> missing Texture found!\n',
+                            print('>>> missing Texture found!\n', end=' ')
                             fixed.append(name)
 
             SLiB_UpdateView()
@@ -4189,7 +4190,7 @@ def SLiB_Unzipper():
         z = z[0]
         if os.path.isfile(z):
             SLiB.messager('Extracting archive...', 'blue')
-            thread.start_new_thread(SLiB_unzip, (z,))
+            _thread.start_new_thread(SLiB_unzip, (z,))
 
 def SLiB_unzip(z):
     zip_ref = zipfile.ZipFile(z, 'r')
@@ -4318,7 +4319,7 @@ def SLiB_MatPicker(x):
             
         view = omui.M3dView()
         omui.M3dView.getM3dViewFromModelPanel('modelPanel4', view)
-        viewWidget = wrapInstance(long(view.widget()), QtWidgets.QWidget)
+        viewWidget = wrapInstance(int(view.widget()), QtWidgets.QWidget)
         oldWin = viewWidget.findChild(QtWidgets.QWidget, 'swatchWin')
         if oldWin:
             oldWin.deleteLater()
@@ -4333,7 +4334,7 @@ def SLiB_MatPicker(x):
 
 def SLiB_Converter():
     import SLiBConvert
-    reload(SLiBConvert)
+    importlib.reload(SLiBConvert)
 
 def SLiB_UserLiB(x):
     if x == 'save':

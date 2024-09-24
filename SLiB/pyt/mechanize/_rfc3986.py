@@ -12,7 +12,7 @@ included with the distribution).
 
 # XXX Wow, this is ugly.  Overly-direct translation of the RFC ATM.
 
-import re, urllib
+import re, urllib.request, urllib.parse, urllib.error
 
 ## def chr_range(a, b):
 ##     return "".join(map(chr, range(ord(a), ord(b)+1)))
@@ -40,7 +40,7 @@ def clean_url(url, encoding):
     url = url.strip()
     # for second param to urllib.quote(), we want URI_CHARS, minus the
     # 'always_safe' characters that urllib.quote() never percent-encodes
-    return urllib.quote(url.encode(encoding), "!*'();:@&=+$,/?%#[]~")
+    return urllib.parse.quote(url.encode(encoding), "!*'();:@&=+$,/?%#[]~")
 
 def is_clean_uri(uri):
     """

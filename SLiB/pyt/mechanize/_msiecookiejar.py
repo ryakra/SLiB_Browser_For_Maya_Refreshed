@@ -13,24 +13,24 @@ COPYING.txt included with the distribution).
 
 import os, re, time, struct, logging
 if os.name == "nt":
-    import _winreg
+    import winreg
 
-from _clientcookie import FileCookieJar, CookieJar, Cookie, \
+from ._clientcookie import FileCookieJar, CookieJar, Cookie, \
      MISSING_FILENAME_TEXT, LoadError
 
 debug = logging.getLogger("mechanize").debug
 
 
 def regload(path, leaf):
-    key = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, path, 0,
-                          _winreg.KEY_ALL_ACCESS)
+    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, path, 0,
+                          winreg.KEY_ALL_ACCESS)
     try:
-        value = _winreg.QueryValueEx(key, leaf)[0]
+        value = winreg.QueryValueEx(key, leaf)[0]
     except WindowsError:
         value = None
     return value
 
-WIN32_EPOCH = 0x019db1ded53e8000L  # 1970 Jan 01 00:00:00 in Win32 FILETIME
+WIN32_EPOCH = 0x019db1ded53e8000  # 1970 Jan 01 00:00:00 in Win32 FILETIME
 
 def epoch_time_offset_from_win32_filetime(filetime):
     """Convert from win32 filetime to seconds-since-epoch value.
@@ -46,7 +46,7 @@ def epoch_time_offset_from_win32_filetime(filetime):
         raise ValueError("filetime (%d) is before epoch (%d)" %
                          (filetime, WIN32_EPOCH))
 
-    return divmod((filetime - WIN32_EPOCH), 10000000L)[0]
+    return divmod((filetime - WIN32_EPOCH), 10000000)[0]
 
 def binary_to_char(c): return "%02X" % ord(c)
 def binary_to_str(d): return "".join(map(binary_to_char, list(d)))
@@ -92,7 +92,7 @@ class MSIEBase:
                 if key == "": break
 
                 rl = cookies_fh.readline
-                def getlong(rl=rl): return long(rl().rstrip())
+                def getlong(rl=rl): return int(rl().rstrip())
                 def getstr(rl=rl): return rl().rstrip()
 
                 key = key.rstrip()
@@ -346,7 +346,7 @@ class MSIECookieJar(MSIEBase, FileCookieJar):
         """Return a list of cookies to be returned to server."""
         domains = self._cookies.copy()
         domains.update(self._delayload_domains)
-        domains = domains.keys()
+        domains = list(domains.keys())
 
         cookies = []
         for domain in domains:
@@ -364,7 +364,7 @@ class MSIECookieJar(MSIEBase, FileCookieJar):
     def read_all_cookies(self):
         """Eagerly read in all cookies."""
         if self.delayload:
-            for domain in self._delayload_domains.keys():
+            for domain in list(self._delayload_domains.keys()):
                 self._delayload_domain(domain)
 
     def load(self, filename, ignore_discard=False, ignore_expires=False,

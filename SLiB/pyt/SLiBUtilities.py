@@ -83,7 +83,7 @@ def gib(x):
             return int(thumbsize)
         
         else:
-            print 'Please enter numeric value!',
+            print('Please enter numeric value!', end=' ')
             cmds.textField('SLiB_CBOX_Resolution', e=1, tx=128)
             return int(128)
 
@@ -264,7 +264,7 @@ def selectFromScreen(x):
         return None
 
 def intersect(dag, pos, dir):
-    print dag
+    print(dag)
     targetDAGPath = getDAGObject(dag)
     meshObj = om.MFnMesh(targetDAGPath)
     posFP = om.MFloatPoint(pos[0],pos[1],pos[2])
@@ -343,10 +343,10 @@ def getImageSize(img):
 def hypershadeThumbs():
     if cmds.menuItem('slHyperShadeThumbs', q=1, cb=1):
         mel.eval("renderThumbnailUpdate false;")
-        print 'Hypershade thumbnail updates turned OFF'
+        print('Hypershade thumbnail updates turned OFF')
     else:
         mel.eval("renderThumbnailUpdate true;")
-        print 'Hypershade thumbnail updates turned ON'
+        print('Hypershade thumbnail updates turned ON')
 
 def findSimilar():
     selectedMesh = cmds.ls(sl=1, type='mesh', dag=1, l=1)
@@ -360,7 +360,7 @@ def findSimilar():
             
     if sameMehes:
         cmds.select(sameMehes)
-        print str(len(sameMehes)) + ' similar meshes found and selected'
+        print(str(len(sameMehes)) + ' similar meshes found and selected')
 
 def snapshotCam():
     perspPanel = cmds.getPanel(wl='Persp View')
@@ -444,7 +444,7 @@ def fileColorMgt(fileNode):
         pass
 
 def renumber(root):
-    i=001
+    i=0o01
     while cmds.objExists(root[0] + str('{0:03}'.format(i))):
         i = i + 1
     root = cmds.rename(root[0], root[0] + '{0:03}'.format(i))
@@ -508,12 +508,12 @@ def loadSettings():
     if int(p[11]) == 1:
         cmds.layout('slib_toolbar', e=1, vis=1)
 
-    print 'SLiB >>> Browser PRO Settings found and applied'
+    print('SLiB >>> Browser PRO Settings found and applied')
 
     if '2017' not in gib('mayaVersion'):
         if cmds.menuItem('dockMenu', q=1, cb=1):
             dockUI()
-            print 'SLiB >>> Browser PRO Window docked\n',
+            print('SLiB >>> Browser PRO Window docked\n', end=' ')
     
     if gib('renderer') not in ['arnold', 'mentalray' , 'redshift', 'vray']:
         cmds.warning('Your currently used Render Engine [ ' + str(gib('renderer')) + ' ] is not fully supported and some functions might not work.')
@@ -593,7 +593,7 @@ def returnSG(SG, x):
 def swatchWin(mat):
     view = omui.M3dView()
     omui.M3dView.getM3dViewFromModelPanel('modelPanel4', view)
-    viewWidget = wrapInstance(long(view.widget()), QtWidgets.QWidget)
+    viewWidget = wrapInstance(int(view.widget()), QtWidgets.QWidget)
     viewWidget.setObjectName(mat)
     oldWin = viewWidget.findChild(QtWidgets.QWidget, 'swatchWin')
     if oldWin:
@@ -616,8 +616,8 @@ class swatchWidget(QtWidgets.QWidget):
 
         cmds.swatchDisplayPort('swatchDP', wh=(size, size), rs=size, sn=mat, pc=lambda *args: cmds.select(cmds.swatchDisplayPort('swatchDP', q=1, sn=1)))
         cmds.text('swatchText', l=mat, w=size, h=32, bgc=[0,0,0])
-        sdp = wrapInstance(long(omui.MQtUtil.findControl('swatchDP')), QtWidgets.QWidget)
-        sdt = wrapInstance(long(omui.MQtUtil.findControl('swatchText')), QtWidgets.QWidget)
+        sdp = wrapInstance(int(omui.MQtUtil.findControl('swatchDP')), QtWidgets.QWidget)
+        sdt = wrapInstance(int(omui.MQtUtil.findControl('swatchText')), QtWidgets.QWidget)
 
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setSpacing(0)

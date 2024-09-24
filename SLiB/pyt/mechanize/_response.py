@@ -16,8 +16,8 @@ included with the distribution).
 
 """
 
-import copy, mimetools, urllib2
-from cStringIO import StringIO
+import copy, mimetools, urllib.request, urllib.error, urllib.parse
+from io import StringIO
 
 
 def len_of_seekable(file_):
@@ -239,7 +239,7 @@ class seek_wrapper:
         return data
 
     def __iter__(self): return self
-    def next(self):
+    def __next__(self):
         line = self.readline()
         if line == "": raise StopIteration
         return line
@@ -294,7 +294,7 @@ class eoffile:
     def read(self, size=-1): return ""
     def readline(self, size=-1): return ""
     def __iter__(self): return self
-    def next(self): return ""
+    def __next__(self): return ""
     def close(self): pass
 
 class eofresponse(eoffile):
@@ -351,7 +351,7 @@ class closeable_response:
         else:
             self.fileno = lambda: None
         self.__iter__ = self.fp.__iter__
-        self.next = self.fp.next
+        self.next = self.fp.__next__
 
     def __repr__(self):
         return '<%s at %s whose fp = %r>' % (
@@ -432,7 +432,7 @@ def make_headers(headers):
 def get_seek_wrapper_class(response):
     # in order to wrap response objects that are also exceptions, we must
     # dynamically subclass the exception :-(((
-    if (isinstance(response, urllib2.HTTPError) and
+    if (isinstance(response, urllib.error.HTTPError) and
         not hasattr(response, "seek")):
         if response.__class__.__module__ == "__builtin__":
             exc_class_name = response.__class__.__name__

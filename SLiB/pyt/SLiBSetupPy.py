@@ -86,11 +86,11 @@ def SLiBSetupSM():
 
 def SLiBSetupLoad():
     SLiBSetupSM()
-    print 'SLiB: >>> Menu Entry and Shelf created!'
+    print('SLiB: >>> Menu Entry and Shelf created!')
 
 def SLiBSetupUnLoad():
     if cmds.menu('SLiBMenu', q=1, ex=1):
         cmds.deleteUI('SLiBMenu', menu=1)
     if cmds.shelfLayout("SLiB", ex=1):
         cmds.deleteUI("SLiB")
-    print 'SLiB: >>> Menu Entry and Shelf removed!'
+    print('SLiB: >>> Menu Entry and Shelf removed!')

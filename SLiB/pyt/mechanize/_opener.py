@@ -8,7 +8,7 @@ COPYING.txt included with the distribution).
 
 """
 
-import os, urllib2, bisect, httplib, types, tempfile
+import os, urllib.request, urllib.error, urllib.parse, bisect, http.client, types, tempfile
 try:
     import threading as _threading
 except ImportError:
@@ -19,19 +19,19 @@ except NameError:
     import sets
     set = sets.Set
 
-from _request import Request
-import _response
-import _rfc3986
-import _sockettimeout
-import _urllib2_fork
-from _util import isstringlike
+from ._request import Request
+from . import _response
+from . import _rfc3986
+from . import _sockettimeout
+from . import _urllib2_fork
+from ._util import isstringlike
 
 open_file = open
 
 
-class ContentTooShortError(urllib2.URLError):
+class ContentTooShortError(urllib.error.URLError):
     def __init__(self, reason, result):
-        urllib2.URLError.__init__(self, reason)
+        urllib.error.URLError.__init__(self, reason)
         self.result = result
 
 
@@ -132,14 +132,14 @@ class OpenerDirector(_urllib2_fork.OpenerDirector):
         # sort indexed methods
         # XXX could be cleaned up
         for lookup in [process_request, process_response]:
-            for scheme, handlers in lookup.iteritems():
+            for scheme, handlers in lookup.items():
                 lookup[scheme] = handlers
-        for scheme, lookup in handle_error.iteritems():
-            for code, handlers in lookup.iteritems():
+        for scheme, lookup in handle_error.items():
+            for code, handlers in lookup.items():
                 handlers = list(handlers)
                 handlers.sort()
                 lookup[code] = handlers
-        for scheme, handlers in handle_open.iteritems():
+        for scheme, handlers in handle_open.items():
             handlers = list(handlers)
             handlers.sort()
             handle_open[scheme] = handlers
@@ -218,13 +218,13 @@ class OpenerDirector(_urllib2_fork.OpenerDirector):
             meth_name = proto + '_error'
             http_err = 0
         args = (dict, proto, meth_name) + args
-        result = apply(self._call_chain, args)
+        result = self._call_chain(*args)
         if result:
             return result
 
         if http_err:
             args = (dict, 'default', 'http_error_default') + orig_args
-            return apply(self._call_chain, args)
+            return self._call_chain(*args)
 
     BLOCK_SIZE = 1024*8
     def retrieve(self, fullurl, filename=None, reporthook=None, data=None,
@@ -317,7 +317,7 @@ def wrapped_open(urlopen, process_response_object, fullurl, data=None,
     success = True
     try:
         response = urlopen(fullurl, data, timeout)
-    except urllib2.HTTPError, error:
+    except urllib.error.HTTPError as error:
         success = False
         if error.fp is None:  # not a response
             raise
@@ -350,7 +350,7 @@ class SeekableResponseOpener(ResponseProcessingOpener):
 
 
 def isclass(obj):
-    return isinstance(obj, (types.ClassType, type))
+    return isinstance(obj, type)
 
 
 class OpenerFactory:
