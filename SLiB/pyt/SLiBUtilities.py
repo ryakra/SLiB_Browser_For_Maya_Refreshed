@@ -19,16 +19,15 @@ import pymel.core as pm
 import pymel.core.datatypes as dt
 import Qt
 
-
-if '2017' in cmds.about(version=1):
-    from shiboken2 import wrapInstance
-else:
-    from shiboken import wrapInstance
+try:
+    from shiboken6 import wrapInstance
+except ImportError:
+    try:
+        from shiboken2 import wrapInstance
+    except ImportError:
+        from shiboken import wrapInstance
 
 from Qt import QtGui, QtCore, QtWidgets
-from Qt.QtGui import *
-from Qt.QtCore import *
-from Qt.QtWidgets import *
 
 SLiB_dir = os.path.dirname(cmds.pluginInfo('SLiB', q=1, path=1)) + '/SLiB/'
 SLiB_img = mel.eval('getenv SLiBImage;')
@@ -594,7 +593,6 @@ def swatchWin(mat):
     view = omui.M3dView()
     omui.M3dView.getM3dViewFromModelPanel('modelPanel4', view)
     viewWidget = wrapInstance(int(view.widget()), QtWidgets.QWidget)
-    viewWidget.setObjectName(mat)
     oldWin = viewWidget.findChild(QtWidgets.QWidget, 'swatchWin')
     if oldWin:
         oldWin.deleteLater()
@@ -603,7 +601,7 @@ def swatchWin(mat):
     swatchWin = swatchWidget(mat, viewWidget)
     swatchWin.move(0, viewWidget.geometry().height() / 4)
     swatchWin.show()
-
+    
 class swatchWidget(QtWidgets.QWidget):
     def __init__(self, mat, *args, **kwargs):
         QtWidgets.QWidget.__init__(self, *args, **kwargs)

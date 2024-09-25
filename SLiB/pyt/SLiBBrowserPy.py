@@ -24,7 +24,6 @@ import maya.OpenMaya as om
 import maya.OpenMayaUI as omui
 from subprocess import check_call
 import subprocess
-import mechanize
 import zipfile
 import urllib.request, urllib.error, urllib.parse
 import pymel.core as pm
@@ -35,11 +34,15 @@ import SLiBUtilities as SLiB
 import importlib
 importlib.reload(SLiB)
 
-if '2017' in SLiB.gib('mayaVersion'):
+try:
     WorkspaceName = 'WorkspaceBrowser'
-    from shiboken2 import wrapInstance
-else:
-    from shiboken import wrapInstance
+    from shiboken6 import wrapInstance
+except ImportError:
+    try:
+        WorkspaceName = 'WorkspaceBrowser'
+        from shiboken2 import wrapInstance
+    except ImportError:
+        from shiboken import wrapInstance
 
 from Qt import QtGui, QtCore, QtWidgets
 from Qt.QtGui import *
@@ -4097,47 +4100,8 @@ def SLiB_Downloader():
         
     cmds.showWindow('SLiB_Downloader')
     cmds.progressBar('slDownloadBar', w=300, h=12, p='sldWinLayout')
-    cmds.button('SLiB_BUTTON_Download', w=300, h=32, l='INSTALL', bgc=[0,0.75,0.99], c=lambda *args: SLiB_Login(), p='sldWinLayout')
     cmds.window('SLiB_Downloader', e=1, w=300, h=200)
     
-def SLiB_Login():
-    for e in ['shader', 'objects', 'lights', 'hdri', 'textures']:
-        if not os.path.isdir(os.path.normpath(os.path.join(SLiB_lib, e, 'Download'))):
-            os.mkdir(os.path.normpath(os.path.join(SLiB_lib, e, 'Download')))
-            os.mkdir(os.path.normpath(os.path.join(SLiB_lib, e, 'Download', '_SUB')))
-            
-    if SLiB.gib('mainCat') in ['shader', 'objects', 'lights', 'hdri', 'textures']:
-        slLink = str(cmds.textField('slLink', q=1, tx=1))
-        slUser = str(cmds.textField('slUser', q=1, tx=1))
-        slPass = str(cmds.textField('slPass', q=1, tx=1))
-        slURL = 'http://www.store.cgfront.com/login?back=my-account'
-        
-        if slUser and slPass and slLink:
-            browser = mechanize.Browser()
-            browser.set_handle_robots(False)
-            cookies = mechanize.CookieJar()
-            browser.set_cookiejar(cookies)
-            browser.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US) AppleWebKit/534.7 (KHTML, like Gecko) Chrome/7.0.517.41 Safari/534.7')]
-            browser.set_handle_refresh(False)
-            browser.open(slURL)
-            
-            for n in range(0,4):
-                browser.select_form(nr=n)
-                try:
-                    browser.form['email'] = slUser
-                    browser.form['passwd'] = slPass
-                    browser.submit()
-                except mechanize._form.ControlNotFoundError:
-                    continue
-                break 
-        
-            response = browser.open(slLink)
-            SLiB_Download(response, report=SLiB_DownloadProgress)
-        
-        else:
-            SLiB.messager('Please fill all fields!', 'red')
-    else:
-        SLiB.messager('Cannot install in PATHS!', 'red')
 
 def SLiB_DownloadProgress(bytes_so_far, chunk_size, total_size):
     prozent = (float(bytes_so_far) / total_size) * 100
