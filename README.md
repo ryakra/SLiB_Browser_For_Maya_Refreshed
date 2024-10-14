@@ -113,9 +113,6 @@ Contributions are welcome! Here's how you can help:
 
    - Go to your forked repository and click on "New Pull Request".
 
-## License
-
-*This project is licensed under the [MIT License](LICENSE).*
 
 ## Acknowledgments
 
