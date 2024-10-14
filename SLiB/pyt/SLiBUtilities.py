@@ -451,7 +451,8 @@ def renumber(root):
 
 def saveSettings():
     SLIBPrefs = []
-    if '2017' not in gib('mayaVersion'):
+    maya_version = SLiB.gib('mayaVersion')
+    if int(maya_version) < 2017:
         docked = int(cmds.menuItem('dockMenu', q=1, cb=1))
     else:
         docked = int(1)
@@ -490,7 +491,8 @@ def dockUI():
 def loadSettings():
     p = [line.rstrip('\n') for line in open(os.path.join(mel.eval('getenv SLiB;'), 'set', 'windowPrefs.txt'))]
     
-    if '2017' not in gib('mayaVersion'):
+    maya_version = SLiB.gib('mayaVersion')
+    if int(maya_version) < 2017:
         cmds.menuItem('dockMenu', e=1, cb=int(p[0]))
     cmds.textField('SLiB_CBOX_Resolution', e=1, tx=int(p[1]))
     cmds.menuItem('importREF' , e=1, cb=int(p[2]))
@@ -509,7 +511,8 @@ def loadSettings():
 
     print('SLiB >>> Browser PRO Settings found and applied')
 
-    if '2017' not in gib('mayaVersion'):
+    maya_version = SLiB.gib('mayaVersion')
+    if int(maya_version) < 2017:
         if cmds.menuItem('dockMenu', q=1, cb=1):
             dockUI()
             print('SLiB >>> Browser PRO Window docked\n', end=' ')

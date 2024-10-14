@@ -655,14 +655,7 @@ def SLiB_ExportMeta(file, mainMat):
     locked = cmds.optionMenu('meta_locked', q=1, v=1).upper()
     user = cmds.textField('SLiB_TEXTFIELD_User', q=1, tx=1)
     
-    if '15' in SLiB.gib('mayaVersion'):
-        version = '2015'
-    if '2016' in SLiB.gib('mayaVersion') and not '5' in SLiB.gib('mayaVersion'):
-        version = '2016'
-    if '2016' in SLiB.gib('mayaVersion') and '5' in SLiB.gib('mayaVersion'):
-        version = '2016.5'
-    if '17' in SLiB.gib('mayaVersion'):
-        version = '2017'
+    version = SLiB.gib('mayaVersion')
     
     renderer = SLiB.gib('renderer').upper()
     
@@ -2415,7 +2408,8 @@ def SLiB_CustomTexFolder():
 def SLiBQuit():
     print('SLiB >>> Shutting down Browser Pro...')
     
-    if '2017' not in SLiB.gib('mayaVersion'):
+    maya_version = SLiB.gib('mayaVersion')
+    if int(maya_version) < 2017:
         if cmds.dockControl('slBrowserDock', q=1, ex=1):
             cmds.deleteUI('slBrowserDock')
     else:
@@ -2437,7 +2431,8 @@ def SLiBBrowserUI():
     if cmds.dockControl('slBrowserDock', q=1, ex=1):
         cmds.deleteUI('slBrowserDock')
 
-    if '2017' not in SLiB.gib('mayaVersion'):
+    maya_version = SLiB.gib('mayaVersion')
+    if int(maya_version) < 2017:
         if cmds.window('SLiBBrowserUI', q=1, ex=1):
             cmds.deleteUI('SLiBBrowserUI')
             
@@ -2452,7 +2447,8 @@ def SLiBBrowserUI():
     cmds.menu(l='File', allowOptionBoxes=0, p='slMenuBar')
     cmds.menuItem('Load', l='Load Shader Test Scene...', c=lambda *args: SLiB_LoadTestRoom())
     
-    if not '2017' in SLiB.gib('mayaVersion'):
+    maya_version = SLiB.gib('mayaVersion')
+    if int(maya_version) < 2017:
         cmds.menuItem(d=1)
         cmds.menuItem('dockMenu', l='Dock Browser Window', cb=0, c=lambda *args: SLiB.dockUI())
     
@@ -2619,21 +2615,38 @@ def SLiBBrowserUI():
     cmds.iconTextButton(l='exportCUS', w=32, h=20, mh=0, mw=0, i=SLiB_img + 'slib_library.png', c=lambda *args: SLiB_CustomTexFolder(), p='slib_cusFoldeBtn_layout', ann=' Select custom Texture Folder ')
 
     cmds.optionMenu('meta_version', p='slib_version_OB')
-    for e in ['2015', '2016', '2016.5', '2017']:
+    for e in ['2015', '2016', '2016.5', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025']:
         cmds.menuItem(l=e.upper())
     
     cmds.menuItem(l='N/A')
     
-    #META MAYA
-    if '15' in SLiB.gib('mayaVersion'):
-        cmds.optionMenu('meta_version', e=1, v='2015')
-    if '2016' in SLiB.gib('mayaVersion'):
-        if not '5' in SLiB.gib('mayaVersion') and not 'Extension 2' in SLiB.gib('mayaVersion'):
-            cmds.optionMenu('meta_version', e=1, v='2016')
-        else:
-            cmds.optionMenu('meta_version', e=1, v='2016.5')
-    if '17' in SLiB.gib('mayaVersion'):
-        cmds.optionMenu('meta_version', e=1, v='2017')
+    # META MAYA
+    maya_versions = {
+        '15': '2015',
+        '2016': '2016',
+        '2016.5': '2016.5',
+        '17': '2017',
+        '18': '2018',
+        '19': '2019',
+        '20': '2020',
+        '21': '2021',
+        '22': '2022',
+        '23': '2023',
+        '24': '2024',
+        '25': '2025',
+    }
+
+    # Get the current Maya version
+    current_version = SLiB.gib('mayaVersion')
+
+    # Determine the appropriate version setting
+    for key, version in maya_versions.items():
+        if key in current_version:
+            if key == '2016':
+                if '5' in current_version or 'Extension 2' in current_version:
+                    version = '2016.5'
+            cmds.optionMenu('meta_version', e=1, v=version)
+            break
     cmds.popupMenu(parent='meta_version', ctl=0, button=3)
     cmds.menuItem(l='update MAYA', c=lambda *args:  SLiB_UpdateMeta('version'))
 
@@ -2695,7 +2708,8 @@ def SLiBBrowserUI():
     global RenderViewHolder
     RenderViewHolder = wrapInstance(int(omui.MQtUtil.findLayout('PrevLayout')), QtWidgets.QWidget)
     
-    if '2017' not in SLiB.gib('mayaVersion'):
+    maya_version = SLiB.gib('mayaVersion')
+    if int(maya_version) < 2017:
         cmds.showWindow('SLiBBrowserUI')
 
     SLiB_SwitchExportButton()

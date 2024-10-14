@@ -29,12 +29,12 @@ def SLiBSetupSM():
 
     #BROWSER
     if os.path.isfile(pytPath +  'SLiBBrowserPy.py'):
-        if MAYA_VERSION != '2017':
-            cmds.menuItem(parent = 'SLiBMenu', l='SLiB Browser ...', c='import SLiBBrowserPy; reload(SLiBBrowserPy); SLiBBrowserPy.SLiBBrowserUI()') #MENU ENTRY
-            cmds.shelfButton('browser', i=SLiBImage + 'shelf_browser.png', c='import SLiBBrowserPy; reload(SLiBBrowserPy); SLiBBrowserPy.SLiBBrowserUI()', p='SLiB') #SHELF BUTTON
+        if int(MAYA_VERSION) < 2017:
+            cmds.menuItem(parent = 'SLiBMenu', l='SLiB Browser ...', c='import SLiBBrowserPy; SLiBBrowserPy.SLiBBrowserUI()') #MENU ENTRY
+            cmds.shelfButton('browser', i=SLiBImage + 'shelf_browser.png', c='import SLiBBrowserPy; SLiBBrowserPy.SLiBBrowserUI()', p='SLiB') #SHELF BUTTON
         else:
-            cmds.menuItem(parent = 'SLiBMenu', l='SLiB Browser ...', c='import SLiBBrowserPy; reload(SLiBBrowserPy); SLiBBrowserPy.SLiBBrowserWorkspaceControl()') #MENU ENTRY
-            cmds.shelfButton('browser', i=SLiBImage + 'shelf_browser.png', c='import SLiBBrowserPy; reload(SLiBBrowserPy); SLiBBrowserPy.SLiBBrowserWorkspaceControl()', p='SLiB') #SHELF BUTTON
+            cmds.menuItem(parent = 'SLiBMenu', l='SLiB Browser ...', c='import SLiBBrowserPy; SLiBBrowserPy.SLiBBrowserWorkspaceControl()') #MENU ENTRY
+            cmds.shelfButton('browser', i=SLiBImage + 'shelf_browser.png', c='import SLiBBrowserPy; SLiBBrowserPy.SLiBBrowserWorkspaceControl()', p='SLiB') #SHELF BUTTON
         
         cmds.menuItem(parent = 'SLiBMenu', d=1)
     
@@ -47,7 +47,7 @@ def SLiBSetupSM():
     
     #LEUCHTKRAFT
     if os.path.isfile(pytPath +  'SLiBLeuchtkraftPY.py'):
-        if MAYA_VERSION != '2017':
+        if int(MAYA_VERSION) < 2017:
             cmds.menuItem(parent = 'SLiBMenu', l='SLiB Leuchtkraft ...', c='import SLiBLeuchtkraftPY; reload(SLiBLeuchtkraftPY); SLiBLeuchtkraftPY.SLiBLeuchtkraftUI()') #MENU ENTRY
             cmds.shelfButton('leuchtkraft', i=SLiBImage + 'shelf_leuchtkraft.png', c='import SLiBLeuchtkraftPY; reload(SLiBLeuchtkraftPY); SLiBLeuchtkraftPY.SLiBLeuchtkraftUI()', p='SLiB') #SHELF BUTTON
         else:
@@ -72,7 +72,7 @@ def SLiBSetupSM():
     
     #VPR
     if os.path.isfile(pytPath +  'SLiB_VPR.py'):
-        if MAYA_VERSION != '2017':
+        if int(MAYA_VERSION) < 2017:
             cmds.menuItem(parent = 'SLiBMenu', l='SLiB VPR ...', c='import SLiB_VPR; reload(SLiB_VPR); SLiB_VPR.VPRStart()') #MENU ENTRY
             cmds.shelfButton('vpr', i=SLiBImage + 'shelf_vpr.png', c='import SLiB_VPR; reload(SLiB_VPR); SLiB_VPR.VPRStart()', p='SLiB') #SHELF BUTTON
         else:
