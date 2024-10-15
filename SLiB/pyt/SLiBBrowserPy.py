@@ -49,6 +49,8 @@ from Qt.QtGui import *
 from Qt.QtCore import *
 from Qt.QtWidgets import *
 
+dpi_scale = cmds.mayaDpiSetting( query=True, realScaleValue=True )
+print("DPI SCALE: " + str(dpi_scale))
 SLiB_dir = mel.eval('getenv SLiB;')
 SLiB_img = mel.eval('getenv SLiBImage;')
 SLiB_gui = mel.eval('getenv SLiBGui;')
@@ -830,7 +832,7 @@ def SLiB_ZoomWin(item):
     if cmds.window('SLiB_ZoomButton', ex=1):
         cmds.deleteUI('SLiB_ZoomButton')
         
-    mayaMainWindow= wrapInstance(int(omui.MQtUtil.mainWindow()), QWidget) 
+    mayaMainWindow= wrapInstance(int(omui.MQtUtil.mainWindow()), QWidgets) 
     icon = QtGui.QIcon(item)
     button = QtWidgets.QPushButton(parent=mayaMainWindow)
     button.setObjectName('SLiB_ZoomButton')
@@ -968,7 +970,10 @@ class PreviewButton(QtWidgets.QPushButton):
         p = QtGui.QPainter(combined)
         
         p.setRenderHint(QtGui.QPainter.Antialiasing, True)
-        p.setRenderHint(QtGui.QPainter.HighQualityAntialiasing)
+        try:
+            p.setRenderHint(QtGui.QPainter.HighQualityAntialiasing)
+        except:
+            p.setRenderHint(QtGui.QPainter.Antialiasing)
         p.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         
         p.drawImage(QtCore.QPoint(0, 0), background)
@@ -1599,7 +1604,10 @@ class ItemButton(QtWidgets.QPushButton):
             p = QtGui.QPainter(combined)
             
             p.setRenderHint(QtGui.QPainter.Antialiasing, True)
-            p.setRenderHint(QtGui.QPainter.HighQualityAntialiasing)
+            try:
+                p.setRenderHint(QtGui.QPainter.HighQualityAntialiasing)
+            except:
+                p.setRenderHint(QtGui.QPainter.Antialiasing)
             p.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
             
             p.drawImage(QtCore.QPoint(0, 0), bg_scaled)
@@ -2384,6 +2392,41 @@ def SLiB_TexPathChangeWarning(path):
                     cmds.file(s=1)
                     cmds.file(f=1, new=1)
 
+def scale_widgets(widget, dpi_scale):
+    return
+    # Apply scaling to the current widget based on its type
+    if isinstance(widget, QtWidgets.QWidget):
+        # Scale the widget's size
+        widget.setFixedSize(int(widget.width() * dpi_scale), int(widget.height() * dpi_scale))
+
+        # Scale the margins and spacing for layouts
+        layout = widget.layout()
+        if layout:
+            layout.setContentsMargins(
+                int(layout.contentsMargins().left() * dpi_scale),
+                int(layout.contentsMargins().top() * dpi_scale),
+                int(layout.contentsMargins().right() * dpi_scale),
+                int(layout.contentsMargins().bottom() * dpi_scale)
+            )
+            layout.setSpacing(int(layout.spacing() * dpi_scale))
+
+        # Special handling for certain widget types (e.g., QPushButton, QLabel)
+        if isinstance(widget, QtWidgets.QPushButton):
+            # Scale the font size for QPushButton
+            font = widget.font()
+            font.setPointSize(int(font.pointSize() * dpi_scale))
+            widget.setFont(font)
+
+        elif isinstance(widget, QtWidgets.QLabel):
+            # Scale the font size for QLabel
+            font = widget.font()
+            font.setPointSize(int(font.pointSize() * dpi_scale))
+            widget.setFont(font)
+
+        # Recursively apply scaling to child widgets
+        for child in widget.findChildren(QtWidgets.QWidget):
+            scale_widgets(child, dpi_scale)
+
 #BROWSER DOCK 2017
 def SLiBBrowserWorkspaceControl():
     if cmds.workspaceControl(WorkspaceName, ex=1):
@@ -2417,7 +2460,52 @@ def SLiBQuit():
             cmds.deleteUI(WorkspaceName)
             
     print('Bye Bye!')
+
+def scale_widget_by_dpi(widget_name, dpi_scale):
+    """
+    Scales the minimum and maximum size of a Maya UI widget based on the provided DPI scale.
     
+    Args:
+        widget_name (str): The name of the widget (e.g., 'Type_widget').
+        dpi_scale (float): The DPI scaling factor.
+        
+    Returns:
+        bool: True if the widget was found and scaled, False otherwise.
+    """
+    # Try to find the widget as a control, layout, or widget
+    ptr = omui.MQtUtil.findControl(widget_name) or omui.MQtUtil.findLayout(widget_name) or omui.MQtUtil.findWidget(widget_name)
+    
+    if ptr is None:
+        cmds.warning(f"Widget '{widget_name}' not found.")
+        return False
+    
+    # Wrap the pointer to the appropriate QWidget
+    widget = wrapInstance(int(ptr), QtWidgets.QWidget)
+    
+    if not widget:
+        cmds.warning(f"Failed to wrap widget '{widget_name}'.")
+        return False
+
+    # Get the current minimum and maximum sizes
+    min_size = widget.minimumSize()
+    max_size = widget.maximumSize()
+
+    # Scale the sizes by the DPI scale
+    try:
+        new_min_size = QtGui.QSize(min_size.width() * dpi_scale, min_size.height() * dpi_scale)
+        new_max_size = QtGui.QSize(max_size.width() * dpi_scale, max_size.height() * dpi_scale)
+    except:
+        new_min_size = QtCore.QSize(min_size.width() * dpi_scale, min_size.height() * dpi_scale)
+        new_max_size = QtCore.QSize(max_size.width() * dpi_scale, max_size.height() * dpi_scale)
+
+    # Apply the new sizes
+    widget.setMinimumSize(new_min_size)
+    widget.setMaximumSize(new_max_size)
+
+    print(f"Scaled widget '{widget_name}' by DPI scale {dpi_scale}.")
+    return True
+
+
 #BROWSER UI
 def SLiBBrowserUI():
     #WRITE PERMISSION CHECK
@@ -2442,7 +2530,8 @@ def SLiBBrowserUI():
     cmds.window('SLiBBrowserUI', e=1, t='Browser Pro 2.0', te=500, le=500)
     
     #Menu Bar
-    cmds.menuBarLayout('slMenuBar', h=20, p='slib_menubar_layout')
+    cmds.menuBarLayout('slMenuBar', h=20 * dpi_scale, p='slib_menubar_layout')
+    scale_widget_by_dpi('slib_menubar_layout',dpi_scale)
     
     cmds.menu(l='File', allowOptionBoxes=0, p='slMenuBar')
     cmds.menuItem('Load', l='Load Shader Test Scene...', c=lambda *args: SLiB_LoadTestRoom())
@@ -2506,63 +2595,68 @@ def SLiBBrowserUI():
     
     #SPLITTER
     slSplitter = wrapInstance(int(omui.MQtUtil.findControl('slSplitter')), QtWidgets.QSplitter)
-    slSplitter.setSizes([155, 4000])
+    slSplitter.setSizes([155*dpi_scale, 4000*dpi_scale])
+
+    
         
     #MAIN TOOLS LAYOUT
     cmds.layout('slib_toolbar', e=1, vis=0)
-    cmds.iconTextButton('importNormal', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_importnormal.png', c=lambda *args: SLiB_Import('Normal'), p='slib_tools_layout', ann=' Import ')
-    cmds.iconTextButton('importPlace', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_importplace.png', c=lambda *args: SLiB_Import('Place'), p='slib_tools_layout', ann=' Import and Place Object(s) ')
-    cmds.iconTextButton('importReplace', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_importreplace.png', c=lambda *args: SLiB_Import('Replace'), p='slib_tools_layout', ann=' Import and Replace Object(s) ')
-    cmds.iconTextButton('openMaya', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_openmaya.png', c=lambda *args: SLiB_OpenInMaya(), p='slib_tools_layout', ann=' Open in Maya ')
-    cmds.iconTextButton('openFileBrowser', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_openfilebrowser.png', c=lambda *args: SLiB_OpenInFileBrowser(), p='slib_tools_layout', ann=' Open in File Browser ')
-    cmds.iconTextButton('duplicate', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_duplicate.png', c=lambda *args: SLiB_BrowserDuplicate(), p='slib_tools_layout', ann=' Duplicate ')
-    cmds.iconTextButton('rename', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_rename.png', c=lambda *args: SLiB_BrowserRename(), p='slib_tools_layout', ann=' Rename ')
-    cmds.iconTextButton('copy', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_copy.png', c=lambda *args: SLiB_BrowserCopy(), p='slib_tools_layout', ann=' Copy ')
-    cmds.iconTextButton('paste', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_paste.png', c=lambda *args: SLiB_BrowserPaste(), p='slib_tools_layout', ann=' Paste ')
-    cmds.iconTextButton('delete', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_del.png', c=lambda *args: SLiB_BrowserDelete(), p='slib_tools_layout', ann=' Delete ')
+    cmds.iconTextButton('importNormal', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_importnormal.png', c=lambda *args: SLiB_Import('Normal'), p='slib_tools_layout', ann=' Import ')
+    cmds.iconTextButton('importPlace', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_importplace.png', c=lambda *args: SLiB_Import('Place'), p='slib_tools_layout', ann=' Import and Place Object(s) ')
+    cmds.iconTextButton('importReplace', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_importreplace.png', c=lambda *args: SLiB_Import('Replace'), p='slib_tools_layout', ann=' Import and Replace Object(s) ')
+    cmds.iconTextButton('openMaya', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_openmaya.png', c=lambda *args: SLiB_OpenInMaya(), p='slib_tools_layout', ann=' Open in Maya ')
+    cmds.iconTextButton('openFileBrowser', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_openfilebrowser.png', c=lambda *args: SLiB_OpenInFileBrowser(), p='slib_tools_layout', ann=' Open in File Browser ')
+    cmds.iconTextButton('duplicate', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_duplicate.png', c=lambda *args: SLiB_BrowserDuplicate(), p='slib_tools_layout', ann=' Duplicate ')
+    cmds.iconTextButton('rename', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_rename.png', c=lambda *args: SLiB_BrowserRename(), p='slib_tools_layout', ann=' Rename ')
+    cmds.iconTextButton('copy', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_copy.png', c=lambda *args: SLiB_BrowserCopy(), p='slib_tools_layout', ann=' Copy ')
+    cmds.iconTextButton('paste', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_paste.png', c=lambda *args: SLiB_BrowserPaste(), p='slib_tools_layout', ann=' Paste ')
+    cmds.iconTextButton('delete', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_del.png', c=lambda *args: SLiB_BrowserDelete(), p='slib_tools_layout', ann=' Delete ')
     #cmds.iconTextButton('STORE', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_cgfront.png', c=lambda *args: SLiB_Downloader(), p='slib_tools_layout', ann=' Load from Store ')
-    
+    scale_widget_by_dpi('slib_tools_layout',dpi_scale)
+    scale_widget_by_dpi('Type_widget',dpi_scale)
+
     cmds.iconTextButton('importPlace', e=1, en=0)
     cmds.iconTextButton('importReplace', e=1, en=0)
 
     #SHADER TOOLS LAYOUT
     cmds.layout('shader_tools', e=1, vis=1)
-    cmds.iconTextCheckBox('matPicker', mw=0, mh=0, w=32, h=32, onc=lambda *args: SLiB_MatPicker('on'), ofc=lambda *args: SLiB_MatPicker('off'), i=SLiB_img+'slib_matpicker_off.png', si=SLiB_img+'slib_matpicker_on.png', ann=' MAT Picker ', p='shader_tools')
-    cmds.iconTextButton('delUnused', mw=0, mh=0, w=32, h=32, c=lambda *args: mel.eval('MLdeleteUnused;'), i=SLiB_img+'slib_delunused.png', ann=' delete unused Nodes ', p='shader_tools')
-
+    cmds.iconTextCheckBox('matPicker', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, onc=lambda *args: SLiB_MatPicker('on'), ofc=lambda *args: SLiB_MatPicker('off'), i=SLiB_img+'slib_matpicker_off.png', si=SLiB_img+'slib_matpicker_on.png', ann=' MAT Picker ', p='shader_tools')
+    cmds.iconTextButton('delUnused', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, c=lambda *args: mel.eval('MLdeleteUnused;'), i=SLiB_img+'slib_delunused.png', ann=' delete unused Nodes ', p='shader_tools')
+    scale_widget_by_dpi('toolbar_layout',dpi_scale)
     #OBJECTS TOOLS LAYOUT
     cmds.layout('objects_tools', e=1, vis=0)
-    cmds.iconTextCheckBox('ipt', mw=0, mh=0, w=32, h=32, onc=lambda *args: SLiB_iptOn(), ofc=lambda *args: SLiB_iptOff(), i=SLiB_img+'slib_ipt_off.png', si=SLiB_img+'slib_ipt_on.png', ann=' IPT ON /OFF ', p='objects_tools')
+    cmds.iconTextCheckBox('ipt', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, onc=lambda *args: SLiB_iptOn(), ofc=lambda *args: SLiB_iptOff(), i=SLiB_img+'slib_ipt_off.png', si=SLiB_img+'slib_ipt_on.png', ann=' IPT ON /OFF ', p='objects_tools')
     cmds.popupMenu(parent='ipt', ctl=0, button=3)
     cmds.menuItem('keepRotation', l='Keep Rotation', cb=0)
     cmds.menuItem('keepScale', l='Keep Scale', cb=0)
-    cmds.iconTextButton('freezeTrans', mw=0, mh=0, w=32, h=32, c=lambda *args: SLiB.freeze(), i=SLiB_img+'slib_freezetransform.png', ann=' Freeze Transformations ', p='objects_tools')
-    cmds.iconTextButton('autoPlacePivot', mw=0, mh=0, w=32, h=32, c=lambda *args: SLiB.autoPlacePivot(), i=SLiB_img+'slib_autoplacepivot.png', ann=' Move Object to Origin and Pivot to Bottom ', p='objects_tools')
-    cmds.iconTextButton('findSimilar', mw=0, mh=0, w=32, h=32, c=lambda *args: SLiB.findSimilar(), i=SLiB_img+'slib_similar.png', ann=' Find similar objects ', p='objects_tools')
+    cmds.iconTextButton('freezeTrans', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, c=lambda *args: SLiB.freeze(), i=SLiB_img+'slib_freezetransform.png', ann=' Freeze Transformations ', p='objects_tools')
+    cmds.iconTextButton('autoPlacePivot', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, c=lambda *args: SLiB.autoPlacePivot(), i=SLiB_img+'slib_autoplacepivot.png', ann=' Move Object to Origin and Pivot to Bottom ', p='objects_tools')
+    cmds.iconTextButton('findSimilar', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, c=lambda *args: SLiB.findSimilar(), i=SLiB_img+'slib_similar.png', ann=' Find similar objects ', p='objects_tools')
 
     #LIGHTS TOOLS LAYOUT
     cmds.layout('lights_tools', e=1, vis=0)
+
     
     #HDRI TOOLS LAYOUT
     cmds.layout('hdri_tools', e=1, vis=0)
-    cmds.iconTextButton(w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_photoshop.png', c=lambda *args: SLiB_OpenInPhotoshop(), p='hdri_tools', ann=' Send HDRI(s) to Photoshop ')
-    cmds.iconTextButton(w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_rotdome.png', c=lambda *args: SLiB_DomeRot(), p='hdri_tools', ann=' Rotate SLiB Dome ')
-    cmds.iconTextButton(w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_deldome.png', c=lambda *args: SLiB_DelDome(), p='hdri_tools', ann=' Delete SLiB Dome ')
+    cmds.iconTextButton(w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_photoshop.png', c=lambda *args: SLiB_OpenInPhotoshop(), p='hdri_tools', ann=' Send HDRI(s) to Photoshop ')
+    cmds.iconTextButton(w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_rotdome.png', c=lambda *args: SLiB_DomeRot(), p='hdri_tools', ann=' Rotate SLiB Dome ')
+    cmds.iconTextButton(w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_deldome.png', c=lambda *args: SLiB_DelDome(), p='hdri_tools', ann=' Delete SLiB Dome ')
 
     #TEXTURE TOOLS LAYOUT
     cmds.layout('textures_tools', e=1, vis=0)
-    cmds.iconTextButton(w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_importfolder.png', c=lambda *args: SLiB_ExportTextures('folder'), p='textures_tools', ann=' Export Texture(s) from folder ')
-    cmds.iconTextButton(w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_photoshop.png', c=lambda *args: SLiB_OpenInPhotoshop(), p='textures_tools', ann=' Send Texture(s) to Photoshop ')
+    cmds.iconTextButton(w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_importfolder.png', c=lambda *args: SLiB_ExportTextures('folder'), p='textures_tools', ann=' Export Texture(s) from folder ')
+    cmds.iconTextButton(w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_photoshop.png', c=lambda *args: SLiB_OpenInPhotoshop(), p='textures_tools', ann=' Send Texture(s) to Photoshop ')
 
     #PATH TOOLS LAYOUT
     cmds.layout('paths_tools', e=1, vis=0)
-    cmds.iconTextButton(l='ABS > REL', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_relative.png', c=lambda *args: SLiB_ABStoREL(), p='paths_tools', ann=' convert ABSOLUTE path to RELATIVE ')
-    cmds.iconTextButton(l='REL > ABS', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_absolute.png', c=lambda *args: SLiB_RELtoABS(), p='paths_tools', ann=' convert RELATIVE path to ABSOLUTE ')
-    cmds.iconTextButton(l='>> Folder', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_copytofolder.png', c=lambda *args: SLiB_CopyTexturesTo('folder'), p='paths_tools', ann=' copy Texture(s) to Folder ')
-    cmds.iconTextButton(l='Find Missing', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_findtextures.png', c=lambda *args: SLiB_FindMissingTextures(), p='paths_tools', ann=' find missing Texture(s) ')
-    cmds.iconTextButton(l='Relink', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_relink.png', c=lambda *args: SLiB_RelinkTextures(), p='paths_tools', ann=' Relink to Folder ')
+    cmds.iconTextButton(l='ABS > REL', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_relative.png', c=lambda *args: SLiB_ABStoREL(), p='paths_tools', ann=' convert ABSOLUTE path to RELATIVE ')
+    cmds.iconTextButton(l='REL > ABS', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_absolute.png', c=lambda *args: SLiB_RELtoABS(), p='paths_tools', ann=' convert RELATIVE path to ABSOLUTE ')
+    cmds.iconTextButton(l='>> Folder', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_copytofolder.png', c=lambda *args: SLiB_CopyTexturesTo('folder'), p='paths_tools', ann=' copy Texture(s) to Folder ')
+    cmds.iconTextButton(l='Find Missing', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_findtextures.png', c=lambda *args: SLiB_FindMissingTextures(), p='paths_tools', ann=' find missing Texture(s) ')
+    cmds.iconTextButton(l='Relink', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_relink.png', c=lambda *args: SLiB_RelinkTextures(), p='paths_tools', ann=' Relink to Folder ')
 
-    cmds.iconTextButton('SLiBRefresh', mw=0, mh=0, w=32, h=32, i=SLiB_img + 'slib_refresh.png', c=lambda *args: SLiB_UpdateView(), ann=' Refresh Previews ', p='SLiB_BUTTON_Refresh')
+    cmds.iconTextButton('SLiBRefresh', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, i=SLiB_img + 'slib_refresh.png', c=lambda *args: SLiB_UpdateView(), ann=' Refresh Previews ', p='SLiB_BUTTON_Refresh')
     cmds.textField('SLiB_CBOX_Resolution', e=1, cc=lambda *args: SLiB_UpdateView())
     cmds.popupMenu(parent='SLiB_CBOX_Resolution', ctl=0, button=3)
     cmds.menuItem(l='64', c=lambda *args: (cmds.textField('SLiB_CBOX_Resolution', e=1, tx='64'), SLiB_UpdateView()))
@@ -2572,7 +2666,9 @@ def SLiBBrowserUI():
     cmds.menuItem(l='256', c=lambda *args: (cmds.textField('SLiB_CBOX_Resolution', e=1, tx='256'), SLiB_UpdateView()))
     cmds.menuItem(l='384', c=lambda *args: (cmds.textField('SLiB_CBOX_Resolution', e=1, tx='384'), SLiB_UpdateView()))
     cmds.menuItem(l='512', c=lambda *args: (cmds.textField('SLiB_CBOX_Resolution', e=1, tx='512'), SLiB_UpdateView()))
-    
+    scale_widget_by_dpi('SLiB_LAYOUT_Refresh', dpi_scale)
+    scale_widget_by_dpi('SLiB_CBOX_Resolution',dpi_scale)
+    scale_widget_by_dpi('horizontalLayout',dpi_scale)
     cmds.popupMenu(parent='SLiB_TEXTFIELD_Name', ctl=0, button=3)
     cmds.menuItem(l='Take from Asset', c=lambda *args: SLiB_NameFrom('asset'))
     cmds.menuItem(l='Take from Selected', c=lambda *args: SLiB_NameFrom('selection'))
@@ -2585,12 +2681,12 @@ def SLiBBrowserUI():
     cmds.menuItem(d=1)
     cmds.menuItem(l='Clear Notes', c=lambda *args: (cmds.scrollField('SLiB_TEXTFIELD_Info', e=1, tx=''), SLiB_ReplaceNotes()))
     
-    cmds.iconTextCheckBox('searchSwitch', mw=0, mh=0, w=32, h=32, i=SLiB_img + 'slib_search_off.png', si=SLiB_img + 'slib_search_on.png', onc=lambda *args: SLiB_Search('on'), ofc=lambda *args: SLiB_Search('off'), p='SLiB_BUTTON_Search')
+    cmds.iconTextCheckBox('searchSwitch', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, i=SLiB_img + 'slib_search_off.png', si=SLiB_img + 'slib_search_on.png', onc=lambda *args: SLiB_Search('on'), ofc=lambda *args: SLiB_Search('off'), p='SLiB_BUTTON_Search')
     cmds.textField('SLiB_TEXTFIELD_Search', e=1, cc=lambda *args: SLiB_Search('on'), ec=lambda *args: SLiB_Search('on'), aie=1)
     cmds.popupMenu(parent='SLiB_TEXTFIELD_Search', ctl=0, button=3)
     cmds.menuItem(l='Clear', c=lambda *args: SLiB_Search('off'))
-    cmds.iconTextCheckBox('tagSwitch', mw=0, mh=0, w=32, h=32, i=SLiB_img + 'slib_tag_off.png', si=SLiB_img + 'slib_tag_on.png', p='SLiB_BUTTON_Tag', ann=' search using TAGS ')
-
+    cmds.iconTextCheckBox('tagSwitch', mw=0, mh=0, w=32/dpi_scale, h=32/dpi_scale, i=SLiB_img + 'slib_tag_off.png', si=SLiB_img + 'slib_tag_on.png', p='SLiB_BUTTON_Tag', ann=' search using TAGS ')
+    
     cmds.layout('SLiB_export_path', e=1, vis=0)
 
     cmds.optionMenu('ExportOptions', p='slib_ext_OB')
@@ -2612,7 +2708,7 @@ def SLiBBrowserUI():
     for e in ['no Textures', 'with Textures', 'with custom Texture Folder']:
         cmds.menuItem(l=e)
     cmds.optionMenu('exportTEX', e=1, v='with Textures')
-    cmds.iconTextButton(l='exportCUS', w=32, h=20, mh=0, mw=0, i=SLiB_img + 'slib_library.png', c=lambda *args: SLiB_CustomTexFolder(), p='slib_cusFoldeBtn_layout', ann=' Select custom Texture Folder ')
+    cmds.iconTextButton(l='exportCUS', w=32/dpi_scale, h=20/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_library.png', c=lambda *args: SLiB_CustomTexFolder(), p='slib_cusFoldeBtn_layout', ann=' Select custom Texture Folder ')
 
     cmds.optionMenu('meta_version', p='slib_version_OB')
     for e in ['2015', '2016', '2016.5', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025']:
@@ -2675,31 +2771,34 @@ def SLiBBrowserUI():
     #META USER
     cmds.popupMenu(parent='SLiB_TEXTFIELD_User', ctl=0, button=3)
     cmds.menuItem(l='update USER', c=lambda *args:  SLiB_UpdateMeta('user'))
-
+    #SLiB_AssetType = wrapInstance(int(omui.MQtUtil.findLayout('SLiB_AssetType')), QtWidgets.QWidget)
+    #temp_sizes = SLiB_AssetType.maximumSize()
+    #SLiB_AssetType.setMaximumSize(temp_sizes.width() * dpi_scale,temp_sizes.height() * dpi_scale)
+    #SLiB_AssetType.setMinimumSize(temp_sizes.width() * dpi_scale,temp_sizes.height() * dpi_scale)
     cmds.iconTextRadioCollection( 'mainCatCollection', p='SLiBBrowserUI')
-    cmds.iconTextRadioButton('SHADER', l='SHADER', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_type_shader_off.png', si=SLiB_img + 'slib_type_shader_on.png',  p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' SHADER ')
-    cmds.iconTextRadioButton('OBJECTS', l='OBJECTS', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_type_objects_off.png', si=SLiB_img + 'slib_type_objects_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' OBJECTS ')
-    cmds.iconTextRadioButton('LIGHTS', l='LIGHTS', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_type_lights_off.png', si=SLiB_img + 'slib_type_lights_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' LIGHTS ')
-    cmds.iconTextRadioButton('HDRI', l='HDRI', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_type_hdri_off.png', si=SLiB_img + 'slib_type_hdri_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' HDRI ')
-    cmds.iconTextRadioButton('TEXTURES', l='TEXTURES', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_type_textures_off.png', si=SLiB_img + 'slib_type_textures_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' TEXTURES ')
-    cmds.iconTextRadioButton('PATHS', l='PATHS', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_type_paths_off.png', si=SLiB_img + 'slib_type_paths_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' PATHS ')
+    cmds.iconTextRadioButton('SHADER', l='SHADER', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_type_shader_off.png', si=SLiB_img + 'slib_type_shader_on.png',  p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' SHADER ')
+    cmds.iconTextRadioButton('OBJECTS', l='OBJECTS', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_type_objects_off.png', si=SLiB_img + 'slib_type_objects_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' OBJECTS ')
+    cmds.iconTextRadioButton('LIGHTS', l='LIGHTS', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_type_lights_off.png', si=SLiB_img + 'slib_type_lights_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' LIGHTS ')
+    cmds.iconTextRadioButton('HDRI', l='HDRI', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_type_hdri_off.png', si=SLiB_img + 'slib_type_hdri_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' HDRI ')
+    cmds.iconTextRadioButton('TEXTURES', l='TEXTURES', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_type_textures_off.png', si=SLiB_img + 'slib_type_textures_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' TEXTURES ')
+    cmds.iconTextRadioButton('PATHS', l='PATHS', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_type_paths_off.png', si=SLiB_img + 'slib_type_paths_on.png', p='SLiB_AssetType', onc=lambda *args: SLiB_ChangeType(), ann=' PATHS ')
     cmds.iconTextRadioButton('SHADER', e=1, sl=1)
     
-    cmds.iconTextButton('LIBRARY', w=32, h=20, mh=0, mw=0, i=SLiB_img + 'slib_library.png', c=lambda *args: SLiB_AddLib(), p='lib_layout', ann=' add new Library ')
+    cmds.iconTextButton('LIBRARY', w=32/dpi_scale, h=20/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_library.png', c=lambda *args: SLiB_AddLib(), p='lib_layout', ann=' add new Library ')
     cmds.popupMenu('popupLib', parent='LIBRARY', ctl=0, button=3)
     cmds.menuItem(l='Remove Library', c=lambda *args: SLiB_RemoveLib())
     cmds.menuItem(d=1)
     cmds.menuItem(l='Edit Libraries', c=lambda *args: SLiB_EditLibraries())
 
-    cmds.iconTextButton('SLiB_BUTTON_CreatePreview', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview(), p='SLiB_RenderButtonLayout01', ann=' Generate Preview Image ')
+    cmds.iconTextButton('SLiB_BUTTON_CreatePreview', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview(), p='SLiB_RenderButtonLayout01', ann=' Generate Preview Image ')
     SLiB.renderPreviewPop()
     
-    cmds.iconTextButton('SLiB_BUTTON_Render', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_render.png', c=lambda *args: (SLiB_OverlayImage(SLiB_img + 'browser_rendering.png'), SLiB_Render()), dcc=lambda *args: SLiB_ToggleSnapshotCam(), p='SLiB_RenderButtonLayout02', ann=' Render Preview Image ')
-    cmds.iconTextButton('slPlayblast', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_playblast.png', c=lambda *args: SLiB_PlayBlast(), dcc=lambda *args: SLiB_ToggleSnapshotCam(), p='SLiB_RenderButtonLayout03', ann=' Snapshot ')
+    cmds.iconTextButton('SLiB_BUTTON_Render', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_render.png', c=lambda *args: (SLiB_OverlayImage(SLiB_img + 'browser_rendering.png'), SLiB_Render()), dcc=lambda *args: SLiB_ToggleSnapshotCam(), p='SLiB_RenderButtonLayout02', ann=' Render Preview Image ')
+    cmds.iconTextButton('slPlayblast', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_playblast.png', c=lambda *args: SLiB_PlayBlast(), dcc=lambda *args: SLiB_ToggleSnapshotCam(), p='SLiB_RenderButtonLayout03', ann=' Snapshot ')
     
-    cmds.iconTextButton('slfromRV', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_renderview.png', c=lambda *args: SLiB_LoadFromRV(), p='SLiB_RenderButtonLayout04', ann=' Grab Preview Image from RenderView ')
-    cmds.iconTextButton('slfromFile', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_fileload.png', c=lambda *args: SLiB_LoadFromFile(), p='SLiB_RenderButtonLayout05', ann=' Load Preview Image from Disk ')
-    cmds.iconTextCheckBox('RVLocked', w=32, h=32, mh=0, mw=0, v=0, i=SLiB_img + 'slib_unlocked.png', si=SLiB_img + 'slib_locked.png', p='SLiB_RenderLockLayout', ann=' Lock Preview Image ')
+    cmds.iconTextButton('slfromRV', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_renderview.png', c=lambda *args: SLiB_LoadFromRV(), p='SLiB_RenderButtonLayout04', ann=' Grab Preview Image from RenderView ')
+    cmds.iconTextButton('slfromFile', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_fileload.png', c=lambda *args: SLiB_LoadFromFile(), p='SLiB_RenderButtonLayout05', ann=' Load Preview Image from Disk ')
+    cmds.iconTextCheckBox('RVLocked', w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, v=0, i=SLiB_img + 'slib_unlocked.png', si=SLiB_img + 'slib_locked.png', p='SLiB_RenderLockLayout', ann=' Lock Preview Image ')
 
     global SLiBThumbsLayout
     SLiBThumbsLayout = wrapInstance(int(omui.MQtUtil.findLayout('SLiB_thumbsframe')), QtWidgets.QWidget)
@@ -3050,19 +3149,19 @@ def SLiB_CreatePreview():
                 cam = 'renderCam_Persp_L'
 
         try:
-            cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_rendering.png', c=lambda *args: SLiB.messager('Already rendering...', 'red'))
+            cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_rendering.png', c=lambda *args: SLiB.messager('Already rendering...', 'red'))
             if errorList:
                 SLiB.messager('Generating Preview Image(s)... (some errors occured - check Script Editor!)', 'yellow')
             else:
                 SLiB.messager('Generating Preview Image(s)... ', 'green')
             _thread.start_new_thread(SLiB_CreatePreviewRender, (previewCat, mode, cam, type))
         except:
-            cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview())
+            cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview())
     
     else:
         if errorList:
             SLiB.messager('Some errors occured - check Script Editor!', 'red')
-            cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview())
+            cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview())
         else:
             SLiB.messager('Please select Item(s) first!', 'red')
 
@@ -3146,7 +3245,7 @@ def SLiB_UpdateBatch(item, selItem, batchList):
 def SLiB_ThreadEnd(previewCat):
     if SLiB.gib('currLocation') == previewCat:
         cmds.evalDeferred(lambda: SLiB_UpdateView())
-    cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview(), ann=' Generate Preview Image ')
+    cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview(), ann=' Generate Preview Image ')
     SLiB.messager('Preview Image Generation finished!', 'green')
 
 def SLiB_SwapImage(selShaderPreview, renderer):
