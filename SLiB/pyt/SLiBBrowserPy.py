@@ -364,61 +364,135 @@ def SLiB_AutoCopyToProject(root):
 #EXPORT
 def SLiB_BrowserExport():
     print('SLiB >> starting EXPORT')
+    
+    # Check if name is provided
+    print('SLiB >> Checking if name is provided')
     if len(SLiB.gib('name')) == 0:
+        print('SLiB >> No name entered')
         SLiB.messager('Please enter a Name!', 'red')
         sys.exit()
+    else:
+        print(f'SLiB >> Name entered: {SLiB.gib("name")}')
     
+    # Get selected shapes or default object
+    print('SLiB >> Retrieving selected shapes')
     shapesInSel = cmds.listRelatives(s=1) or object
+    print(f'SLiB >> Shapes in selection: {shapesInSel}')
+    
     newShaderName = SLiB.gib('name')
     exportDir = os.path.join(SLiB.gib('currLocation'), newShaderName)
+    print(f'SLiB >> Export directory: {exportDir}')
     
-    if SLiB.gib('currLocation') != None and SLiB.gib('currLocation') != os.path.normpath(mel.eval('getenv SLiBRARY;') + SLiB.gib('mainCat')):
-        if os.path.exists(exportDir):
-            answer = cmds.confirmDialog(t='Warning', m='Shader/Asset with this Name already exists! \nDo you want to Update it?', button=['Update','No'], defaultButton='Update', cancelButton='No', dismissString='No' )
-            if answer != 'Update':
-                sys.exit()
-
-        for ext in ['.ma', '.mb', '.obj']:
-            if os.path.isfile(exportDir + '/' + newShaderName + ext):
-                os.remove(exportDir + '/' + newShaderName + ext)
+    # Validate current location
+    print('SLiB >> Validating current location')
+    if SLiB.gib('currLocation') is not None and SLiB.gib('currLocation') != os.path.normpath(mel.eval('getenv SLiBRARY;') + SLiB.gib('mainCat')):
+        print('SLiB >> Current location is valid')
         
+        # Check if export directory already exists
+        if os.path.exists(exportDir):
+            print('SLiB >> Export directory exists, prompting for update')
+            answer = cmds.confirmDialog(
+                t='Warning',
+                m='Shader/Asset with this Name already exists! \nDo you want to Update it?',
+                button=['Update', 'No'],
+                defaultButton='Update',
+                cancelButton='No',
+                dismissString='No'
+            )
+            print(f'SLiB >> User selected: {answer}')
+            if answer != 'Update':
+                print('SLiB >> Update declined by user, exiting')
+                sys.exit()
+            else:
+                print('SLiB >> Proceeding with update')
+        
+        # Remove existing files with specific extensions
+        print('SLiB >> Removing existing shader/asset files if any')
+        for ext in ['.ma', '.mb', '.obj']:
+            file_path = os.path.join(exportDir, newShaderName + ext)
+            if os.path.isfile(file_path):
+                print(f'SLiB >> Removing file: {file_path}')
+                os.remove(file_path)
+            else:
+                print(f'SLiB >> File not found, skipping: {file_path}')
+        
+        # Initialize global selection
         global selection
+        print('SLiB >> Determining selection')
         try:
-            selection = cmds.listRelatives(cmds.ls(sl=1)[0], f=1)[0].split('|')[1]
-        except:
+            selected_object = cmds.ls(sl=1)[0]
+            print(f'SLiB >> Selected object: {selected_object}')
+            selection = cmds.listRelatives(selected_object, f=1)[0].split('|')[1]
+            print(f'SLiB >> Processed selection: {selection}')
+        except Exception as e:
+            print(f'SLiB >> Error determining selection: {e}')
             if SLiB.gib('mainCat') == 'shader':
                 SLiB.messager('Please select the Object that holds the Shader!', 'red')
             else:
                 SLiB.messager('Please select the Object or Group you want to export!', 'red')
             sys.exit()
-
-        if SLiB.gib('mainCat') == 'shader': 
-            print('SLiB >> Item = SHADER')
+        
+        # Check if main category is shader
+        if SLiB.gib('mainCat') == 'shader':
+            print('SLiB >> Main category is SHADER')
             shadingGroups = list(set(cmds.listConnections(shapesInSel, type='shadingEngine')))
+            print(f'SLiB >> Shading groups found: {shadingGroups}')
             selMaterials = list(set(cmds.ls(cmds.listConnections(shadingGroups), mat=1)))
-
+            print(f'SLiB >> Selected materials: {selMaterials}')
+            
             if len(selMaterials) > 1:
-                if cmds.window('exportWindow', ex=1):
+                print('SLiB >> Multiple shaders found in selection')
+                if cmds.window('exportWindow', exists=True):
+                    print('SLiB >> Deleting existing exportWindow UI')
                     cmds.deleteUI('exportWindow')
-
+                
+                print('SLiB >> Creating exportWindow UI for shader selection')
                 cmds.window('exportWindow', t=' ', sizeable=1, rtf=1)
                 cmds.columnLayout('shaderWinLayout', w=260, h=40, adj=1)
-                cmds.text(l='More than one Shader found in Selection. \n Please select the one you want to Export!', w=260, h=50, p='shaderWinLayout')
+                cmds.text(
+                    l='More than one Shader found in Selection. \n Please select the one you want to Export!',
+                    w=260,
+                    h=50,
+                    p='shaderWinLayout'
+                )
                 cmds.iconTextRadioCollection('itRadCollection')
                 for e in shadingGroups:
                     if e != 'initialShadingGroup':
-                        cmds.iconTextRadioButton(st='textOnly', w=260, h=50, l=e, bgc=[0,0.75,0.99], cc=lambda *args: (SLiB_ExportShader(newShaderName, shapesInSel, cmds.iconTextRadioButton(cmds.iconTextRadioCollection('itRadCollection', q=1, sl=1), q=1, l=1)), cmds.deleteUI('exportWindow')), p='shaderWinLayout')
+                        print(f'SLiB >> Adding radio button for shading group: {e}')
+                        cmds.iconTextRadioButton(
+                            st='textOnly',
+                            w=260,
+                            h=50,
+                            l=e,
+                            bgc=[0, 0.75, 0.99],
+                            cc=lambda *args: (
+                                SLiB_ExportShader(
+                                    newShaderName,
+                                    shapesInSel,
+                                    cmds.iconTextRadioButton(
+                                        cmds.iconTextRadioCollection('itRadCollection', q=1, sl=1),
+                                        q=1,
+                                        l=1
+                                    )
+                                ),
+                                print('SLiB >> Shader exported, closing exportWindow'),
+                                cmds.deleteUI('exportWindow')
+                            ),
+                            p='shaderWinLayout'
+                        )
                         cmds.separator(p='shaderWinLayout')
                 cmds.showWindow('exportWindow')
-                cmds.window('exportWindow', e=1, h=(len(shadingGroups)*50)+40, w=260)
-            
+                window_height = (len(shadingGroups) * 50) + 40
+                print(f'SLiB >> Setting exportWindow size: height={window_height}, width=260')
+                cmds.window('exportWindow', e=1, h=window_height, w=260)
             else:
+                print(f'SLiB >> Single shader found: {shadingGroups[0]}')
                 SLiB_ExportShader(newShaderName, shapesInSel, shadingGroups[0])
-
         else:
-            print('SLiB >> Item = OBJECT')
+            print('SLiB >> Main category is OBJECT')
             SLiB_ExportObject(newShaderName, shapesInSel)
     else:
+        print('SLiB >> Invalid current location or category not selected')
         SLiB.messager('Please select a Category!', 'red')
 
 def SLiB_ExportShader(newShaderName, shapesInSel, shadingGrp):
@@ -2614,6 +2688,7 @@ def SLiBBrowserUI():
     #cmds.iconTextButton('STORE', w=32, h=32, mh=0, mw=0, i=SLiB_img + 'slib_cgfront.png', c=lambda *args: SLiB_Downloader(), p='slib_tools_layout', ann=' Load from Store ')
     scale_widget_by_dpi('slib_tools_layout',dpi_scale)
     scale_widget_by_dpi('Type_widget',dpi_scale)
+    scale_widget_by_dpi('SLiB_LAYOUT_Toolbar',dpi_scale)
 
     cmds.iconTextButton('importPlace', e=1, en=0)
     cmds.iconTextButton('importReplace', e=1, en=0)
@@ -2851,21 +2926,60 @@ def SLiB_IconToolBar():
         cmds.layout('slib_toolbar', e=1, vis=0)
 
 def SLiB_BuildTree():
+    print('SLiB >> Building Tree')
+    
+    # Set focus to the name text field
+    print('SLiB >> Setting focus to SLiB_TEXTFIELD_Name')
     cmds.setFocus('SLiB_TEXTFIELD_Name')
+    
+    # Check if 'treeLayout' exists and delete if it does
+    print('SLiB >> Checking if treeLayout exists')
     if cmds.formLayout('treeLayout', ex=1):
+        print('SLiB >> treeLayout exists, deleting UI')
         cmds.deleteUI('treeLayout')
+    else:
+        print('SLiB >> treeLayout does not exist, no need to delete')
         
-    if SLiB.gib('mainCat') != 'paths': 
+    # Proceed only if main category is not 'paths'
+    main_cat = SLiB.gib('mainCat')
+    print(f'SLiB >> Main category: {main_cat}')
+    if main_cat != 'paths': 
+        print('SLiB >> Main category is not "paths", building tree layout')
         treeLayout = cmds.formLayout('treeLayout', p='CatLayout')
+        print(f'SLiB >> Created formLayout with name: {treeLayout}')
+        
+        # Create treeView control
         treeControl = cmds.treeView('treeView', p='treeLayout', arp=0, enk=1, irc=lambda *args: SLiB_RefreshTree())
-
-        cmds.formLayout(treeLayout, e=True, attachForm=[(treeControl,'top', 2), (treeControl,'left', 2), (treeControl,'bottom', 2), (treeControl,'right', 2)])
+        print(f'SLiB >> Created treeView control: {treeControl}')
+    
+        # Attach treeControl to all sides of the formLayout
+        cmds.formLayout(treeLayout, e=True, attachForm=[
+            (treeControl, 'top', 2),
+            (treeControl, 'left', 2),
+            (treeControl, 'bottom', 2),
+            (treeControl, 'right', 2)
+        ])
+        print('SLiB >> Attached treeView to formLayout edges')
         
-        libPath = os.path.normpath(os.path.join(mel.eval('getenv SLiBRARY;'), cmds.iconTextRadioCollection('mainCatCollection', q=1, sl=1).lower()))
-        library = os.path.basename(mel.eval('getenv SLiBRARY'))
+        # Determine library path and name
+        slibrary_env = mel.eval('getenv SLiBRARY;')
+        selected_cat = cmds.iconTextRadioCollection('mainCatCollection', q=1, sl=1).lower()
+        libPath = os.path.normpath(os.path.join(slibrary_env, selected_cat))
+        library = os.path.basename(slibrary_env)
+        print(f'SLiB >> Library path: {libPath}')
+        print(f'SLiB >> Library name: {library}')
         
+        # Add root item to treeView
         cmds.treeView('treeView', e=1, addItem=(libPath, ''))
+        print(f'SLiB >> Added root item to treeView: {libPath}')
         cmds.treeView('treeView', e=1, dl=(libPath, 'ROOT'))
+        print(f'SLiB >> Set display label for root item: {libPath} as "ROOT"')
+        cmds.treeView('treeView', e=1, selectItem=(libPath, True))
+        print(f'SLiB >> Selected root item: {libPath}')
+
+        
+        # Create popup menu for treeView
+        print('SLiB >> Creating popup menu for treeView')
         cmds.popupMenu(p='treeView', ctl=False, button=3)
         cmds.menuItem(l='Refresh', c=lambda *args: SLiB_RefreshTree())
         cmds.menuItem(d=1)
@@ -2873,23 +2987,55 @@ def SLiB_BuildTree():
         cmds.menuItem(l='Open in File Browser', c=lambda *args: SLiB_OpenCatInFileBrowser())
         cmds.menuItem(d=1)
         cmds.menuItem(l='Remove Category', c=lambda *args: SLiB_RemoveDir())
+        print('SLiB >> Popup menu items added to treeView')
         
-        for r in next(os.walk(libPath))[1]:
+        # Walk through the library path and populate treeView
+        print('SLiB >> Walking through library directory to populate treeView')
+        try:
+            directories = next(os.walk(libPath))[1]
+            print(f'SLiB >> Found directories: {directories}')
+        except StopIteration:
+            print(f'SLiB >> No directories found in library path: {libPath}')
+            directories = []
+        
+        for r in directories:
             if r == '.DS_Store':
-                pass
+                print('SLiB >> Skipping .DS_Store file')
+                continue
             else:
-                r = os.path.normpath(libPath + '/' + r)
-
-                cmds.treeView('treeView', e=1, addItem=(r, ''), scc=lambda *args: SLiB_Expand())
-                cmds.treeView('treeView', e=1, dl=(r, os.path.basename(r)))
-                cmds.treeView('treeView', e=1, ei=(r, 0))
+                normalized_r = os.path.normpath(os.path.join(libPath, r))
+                print(f'SLiB >> Processing directory: {normalized_r}')
+    
+                # Add directory to treeView
+                cmds.treeView('treeView', e=1, addItem=(normalized_r, ''), scc=lambda *args: SLiB_Expand())
+                print(f'SLiB >> Added item to treeView: {normalized_r}')
+                cmds.treeView('treeView', e=1, dl=(normalized_r, os.path.basename(normalized_r)))
+                print(f'SLiB >> Set display label for item: {normalized_r}')
+                cmds.treeView('treeView', e=1, ei=(normalized_r, 0))
+                print(f'SLiB >> Expanded item in treeView: {normalized_r}')
                 
-                if not os.path.isdir(os.path.join(r, '_SUB')):
-                    cmds.sysFile(os.path.join(r, '_SUB'), makeDir=1 )
-
-                if '_SUB' in next(os.walk(r))[1]:
-                    parent = os.path.join(str(r), '_SUB')
-                    SLiB_populateTreeView('treeView', parent, r)
+                # Ensure '_SUB' directory exists
+                sub_dir = os.path.join(normalized_r, '_SUB')
+                if not os.path.isdir(sub_dir):
+                    print(f'SLiB >> _SUB directory does not exist in {normalized_r}, creating it')
+                    cmds.sysFile(sub_dir, makeDir=1 )
+                else:
+                    print(f'SLiB >> _SUB directory already exists in {normalized_r}')
+    
+                # Populate treeView with subdirectories
+                try:
+                    sub_dirs = next(os.walk(normalized_r))[1]
+                    print(f'SLiB >> Found subdirectories in {normalized_r}: {sub_dirs}')
+                except StopIteration:
+                    print(f'SLiB >> No subdirectories found in {normalized_r}')
+                    sub_dirs = []
+                
+                if '_SUB' in sub_dirs:
+                    parent = os.path.join(normalized_r, '_SUB')
+                    print(f'SLiB >> Populating treeView for parent: {parent}')
+                    SLiB_populateTreeView('treeView', parent, normalized_r)
+                else:
+                    print(f'SLiB >> No _SUB directory found in {normalized_r}, skipping population')
 
 def SLiB_populateTreeView(treeControl, parent, parentname):
     children = next(os.walk(parent))[1]
@@ -3166,164 +3312,212 @@ def SLiB_CreatePreview():
             SLiB.messager('Please select Item(s) first!', 'red')
 
 def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
+    print(f'SLiB >> Starting preview render creation for category: {previewCat}, mode: {mode}, camera: {cam}, type: {type}')
+    
     batchList = cbxList
+    print(f'SLiB >> Batch list: {batchList}')
     
     SLiBDir = mel.eval('getenv SLiB;')
     SLiBTempStore = os.path.join(SLiBDir, 'scn', 'Temp')
+    if not os.path.exists(SLiBTempStore):
+        os.makedirs(SLiBTempStore)
+    print(f'SLiB >> SLiB directory: {SLiBDir}')
+    print(f'SLiB >> Temporary store directory: {SLiBTempStore}')
     
     for item in batchList:
         selItem = os.path.basename(os.path.splitext(item)[0])
         selExt = os.path.splitext(item)[1]
-        imageFile =  os.path.join(SLiBDir, 'scn', 'Temp')
+        imageFile = os.path.join(SLiBDir, 'scn', 'Temp')
         selShaderPreview = os.path.splitext(item)[0] + '.png'
+        print(f'SLiB >> Processing item: {item}, selected item: {selItem}, extension: {selExt}')
+        
+        # Update batch
+        print(f'SLiB >> Deferring batch update for item: {item}')
         cmds.evalDeferred(lambda: SLiB_UpdateBatch(item, selItem, batchList))
 
+        # Read renderer from meta file
         meta = os.path.splitext(item)[0] + '.meta'
+        print(f'SLiB >> Reading meta file: {meta}')
         lines = [line.rstrip('\n') for line in open(meta)]
         renderer = lines[5].lower()
+        print(f'SLiB >> Renderer identified: {renderer}')
 
+        # Clean up temporary files
+        print('SLiB >> Cleaning up temporary preview files')
         for f in ['/temp_preview_mat.ma', '/temp_preview_mat.mb', '/temp_preview_obj.ma', '/temp_preview_obj.mb']:
-            if os.path.isfile(SLiBTempStore + f):
-                os.remove(SLiBTempStore + f) 
-            
+            temp_file_path = SLiBTempStore + f
+            if os.path.isfile(temp_file_path):
+                print(f'SLiB >> Removing file: {temp_file_path}')
+                os.remove(temp_file_path)
+            else:
+                print(f'SLiB >> File not found, skipping: {temp_file_path}')
+        
         tempFile = SLiBTempStore + '/temp_preview_' + type
-        sceneFile =  SLiBDir + '/scn/' + renderer + '_SLiB_preview_' + type + '_0' + mode + '.ma'
-
+        sceneFile = SLiBDir + '/scn/' + renderer + '_SLiB_preview_' + type + '_0' + mode + '.ma'
+        print(f'SLiB >> Temporary file: {tempFile}, Scene file: {sceneFile}')
+        
+        # Copy item to temporary file
+        print(f'SLiB >> Copying item to temporary file: {tempFile + selExt}')
         shutil.copy(item, tempFile + selExt)
 
-        ## WINDOWS
-        if platform.system()  == 'win32' or platform.system()  == 'Windows':
-            RenderComLoc = mel.eval('getenv "MAYA_LOCATION"') + '/bin'
-
+        # Render command setup
+        RenderComLoc = mel.eval('getenv "MAYA_LOCATION"') + '/bin'
+        print(f'SLiB >> Render command location: {RenderComLoc}')
+        render_executable = os.path.join(RenderComLoc, "render")
+        if platform.system() == 'win32' or platform.system() == 'Windows':
+            print('SLiB >> Detected platform: Windows')
             if renderer == 'mentalray':
-                command = '"' + RenderComLoc + "/render" + '"' + " -r mr -v 5 -cam " + '"' + cam + '"' + " -rd " + '"' + imageFile + '"' + ' ' + '"' + sceneFile + '"'
+                command = [
+                    render_executable,
+                    "-r", "mr",
+                    "-v", "5",
+                    "-cam", cam,
+                    "-rd", imageFile,
+                    sceneFile,
+                    "-log", f"{tempFile}_log.txt"
+                ]
             else:            
-                command = '"' + RenderComLoc + "/render" + '"' + " -r " + renderer +  " -cam " + cam + " -rd " + '"' + imageFile + '"' + ' ' + '"' + sceneFile + '"'
+                command = [
+                    render_executable,
+                    "-r", renderer,
+                    "-cam", cam,
+                    "-rd", imageFile,
+                    sceneFile,
+                    "-log", f"{tempFile}_log.txt"
+                ]
+            print(f'SLiB >> Render command: {" ".join(command)}')
+            subprocess.call(command, shell=True)
 
-            #batchName = (SLiBLib + '/scn/RenderPreviews.bat')
-            #batchFile = open(batchName,"w")
-            #batchFile.write(command)
-            #batchFile.close()
-
-            subprocess.call(command)
-
-        ## MAC
-        elif platform.system()  == 'darwin' or platform.system()  == 'Darwin':
-            RenderComLoc = mel.eval('getenv "MAYA_LOCATION"') + '/bin'
-
+        elif platform.system() == 'darwin' or platform.system() == 'Darwin':
+            print('SLiB >> Detected platform: macOS')
             if renderer == 'mentalray':
-                command = str(RenderComLoc + "/Render -r mr -v 5 -cam " + '"' + cam + '"' + " -rd " + imageFile  + ' ' + sceneFile)
+                command = f'{RenderComLoc}/Render -r mr -v 5 -cam "{cam}" -rd {imageFile} {sceneFile}'
             else:            
-                command = str(RenderComLoc + "/Render -r " + renderer +  " -cam " + cam +  " -rd " + imageFile  + ' ' + sceneFile)
-
-            batchName = (SLiBDir + '/scn/RenderPreviews.sh')
-            batchFile = open(batchName, "w")
-            batchFile.write("#!/bin/bash")
-            batchFile.write("\n")
-            batchFile.write(str(command))
-            batchFile.close()
-            os.system("chmod 755 "+ batchName)
+                command = f'{RenderComLoc}/Render -r {renderer} -cam {cam} -rd {imageFile} {sceneFile}'
+            print(f'SLiB >> Render command: {command}')
+            
+            batchName = os.path.join(SLiBDir, 'scn', 'RenderPreviews.sh')
+            print(f'SLiB >> Creating batch file: {batchName}')
+            with open(batchName, "w") as batchFile:
+                batchFile.write("#!/bin/bash\n")
+                batchFile.write(command)
+            os.system("chmod 755 " + batchName)
             subprocess.call(batchName)
 
-        '''
-        ## LINUX
-        elif platform.system()  == "linux" or platform.system()  == "linux2":
-            RenderComLoc = mel.eval('getenv "MAYA_LOCATION"') + '/bin'
-            if SLiB.getRenderEngine() == 'mentalray':
-                command = RenderComLoc + "/Render -r mr -v 5 -rd " + imageFile  + ' ' + sceneFile
-            else:            
-                command = RenderComLoc + "/Render -r " + SLiB.getRenderEngine() + " -rd " + imageFile  + ' ' + sceneFile
-        '''
         SLiB_SwapImage(selShaderPreview, renderer)
-            
+        print(f'SLiB >> Swapped image for: {selShaderPreview}')
+
     cmds.evalDeferred(lambda: SLiB_ThreadEnd(previewCat))
+    print(f'SLiB >> Completed preview render creation for category: {previewCat}')
 
 def SLiB_UpdateBatch(item, selItem, batchList):
     i = batchList.index(item) + 1
-    print((' currently rendering: ' +  str(i) + ' / ' + str(len(batchList)) + ' [ ' +  selItem + ' ] '), end=' ')
+    print(f'SLiB >> Currently rendering: {i} / {len(batchList)} [ {selItem} ]')
 
 def SLiB_ThreadEnd(previewCat):
+    print(f'SLiB >> Thread ending for category: {previewCat}')
     if SLiB.gib('currLocation') == previewCat:
+        print('SLiB >> Updating view')
         cmds.evalDeferred(lambda: SLiB_UpdateView())
     cmds.iconTextButton('SLiB_BUTTON_CreatePreview', e=1, w=32/dpi_scale, h=32/dpi_scale, mh=0, mw=0, i=SLiB_img + 'slib_createpreview.png', c=lambda *args: SLiB_CreatePreview(), ann=' Generate Preview Image ')
     SLiB.messager('Preview Image Generation finished!', 'green')
 
 def SLiB_SwapImage(selShaderPreview, renderer):
+    print(f'SLiB >> Swapping image for renderer: {renderer}')
     if renderer == 'arnold':
-        if os.path.isfile(SLiB_tmp + '/tempPreview.tif'):
+        tif_path = SLiB_tmp + '/tempPreview.tif'
+        if os.path.isfile(tif_path):
+            print(f'SLiB >> Converting {tif_path} to PNG')
             image = om.MImage()
-            image.readFromFile(SLiB_tmp + '/tempPreview.tif')
+            image.readFromFile(tif_path)
             image.writeToFile(SLiB_tmp + '/tempPreview.png', 'png')
-    
-    if os.path.isfile(SLiB_tmp + '/tempPreview.png'):
-        shutil.copy(SLiB_tmp + '/tempPreview.png', selShaderPreview)
+    print("SLiB >> Not Arnold")
+    png_path = SLiB_tmp + '/tempPreview.png'
+    print(f"SLiB >> Total Path: {png_path}")
+    if os.path.isfile(png_path):
+        print(f'SLiB >> Copying {png_path} to {selShaderPreview}')
+        shutil.copy(png_path, selShaderPreview)
 
 def SLiB_Render():
+    print('SLiB >> Starting render process')
     SLiB_StopRender()
 
     perspPanel = cmds.getPanel(wl='Persp View')
     cmds.setFocus(perspPanel)
     cmds.select(cl=1)
     renderCam = cmds.modelPanel(cmds.getPanel(wf=1), q=1, cam=1)
+    print(f'SLiB >> Render camera: {renderCam}')
+
     imageName = os.path.normpath(SLiB_tmp + '/tempPreview.png')
     if os.path.isfile(imageName):
+        print(f'SLiB >> Removing existing image: {imageName}')
         os.remove(imageName)
     
-    if SLiB.gib('renderer') == 'redshift':
+    renderer = SLiB.gib('renderer')
+    print(f'SLiB >> Using renderer: {renderer}')
+    
+    if renderer == 'redshift':
+        print('SLiB >> Configuring Redshift settings')
         cmds.setAttr('redshiftOptions.postRenderMel', 'python("import SLiBBrowserPy; SLiBBrowserPy.SLiB_LoadDelayed()")', type='string')
         cmds.setAttr('redshiftOptions.renderTwoPassesForDenoising', 1)
         cmds.setAttr('defaultRenderGlobals.imageFormat', 32)
         cmds.setAttr('defaultResolution.width', 512)
         cmds.setAttr('defaultResolution.height', 512)
-        aspRatio = float(cmds.getAttr('defaultResolution.width'))/float(cmds.getAttr('defaultResolution.height'))
+        aspRatio = float(cmds.getAttr('defaultResolution.width')) / float(cmds.getAttr('defaultResolution.height'))
         cmds.setAttr('defaultResolution.deviceAspectRatio', aspRatio)
         
         cmds.rsRender(r=1, cam=renderCam)
         
-    if SLiB.gib('renderer') == 'vray':
+    if renderer == 'vray':
+        print('SLiB >> Configuring V-Ray settings')
         mel.eval("vrend -ipr false;")
-        cmds.setAttr('vraySettings.wi',512)
+        cmds.setAttr('vraySettings.wi', 512)
         cmds.setAttr('vraySettings.he', 512)
-        aspRatio = float(cmds.getAttr('vraySettings.wi'))/float(cmds.getAttr('vraySettings.he'))
+        aspRatio = float(cmds.getAttr('vraySettings.wi')) / float(cmds.getAttr('vraySettings.he'))
         cmds.setAttr('vraySettings.aspr', aspRatio)
         cmds.setAttr('vraySettings.vfbOn', 0)
         cmds.setAttr('vraySettings.samplerType', 1)
-        cmds.setAttr ('vraySettings.sRGBOn', 1)
+        cmds.setAttr('vraySettings.sRGBOn', 1)
         
-        mel.eval("vrend -cam "+renderCam+";")
+        mel.eval(f"vrend -cam {renderCam};")
 
-    if SLiB.gib('renderer') == 'arnold':
+    if renderer == 'arnold':
+        print('SLiB >> Configuring Arnold settings')
         cmds.setAttr('defaultArnoldDriver.ai_translator', 'tif', type='string')
         cmds.setAttr('defaultResolution.width', 512)
         cmds.setAttr('defaultResolution.height', 512)
-        aspRatio = float(cmds.getAttr('defaultResolution.width'))/float(cmds.getAttr('defaultResolution.height'))
+        aspRatio = float(cmds.getAttr('defaultResolution.width')) / float(cmds.getAttr('defaultResolution.height'))
         cmds.setAttr('defaultResolution.deviceAspectRatio', aspRatio)
         imageName = os.path.normpath(SLiB_tmp + '/icontemp.tif')
 
         cmds.arnoldRender(cam=renderCam)
 
-    if SLiB.gib('renderer') == 'mentalray':
+    if renderer == 'mentalray':
+        print('SLiB >> Configuring Mental Ray settings')
         cmds.setAttr('defaultRenderGlobals.imageFormat', 3)
         cmds.setAttr('defaultResolution.width', 512)
         cmds.setAttr('defaultResolution.height', 512)
-        aspRatio = float(cmds.getAttr('defaultResolution.width'))/float(cmds.getAttr('defaultResolution.height'))
+        aspRatio = float(cmds.getAttr('defaultResolution.width')) / float(cmds.getAttr('defaultResolution.height'))
         cmds.setAttr('defaultResolution.deviceAspectRatio', aspRatio)
         imageName = os.path.normpath(SLiB_tmp + '/icontemp.tif')
         
         cmds.Mayatomr(pv=1, cam=renderCam)
 
-    if SLiB.gib('renderer') in ['vray', 'arnold', 'mentalray']:
+    if renderer in ['vray', 'arnold', 'mentalray']:
+        print(f'SLiB >> Updating render view with image: {imageName}')
         cmds.renderWindowEditor('renderView', e=1, wi=imageName)
         
-    if SLiB.gib('renderer') in ['arnold', 'mentalray']:
+    if renderer in ['arnold', 'mentalray']:
         if os.path.isfile(imageName):
+            print(f'SLiB >> Converting {imageName} to PNG')
             image = om.MImage()
             image.readFromFile(imageName)
-            image.writeToFile(os.path.normpath(SLiB_tmp + '/tempPreview.png', 'png'))
+            image.writeToFile(os.path.normpath(SLiB_tmp + '/tempPreview.png'), 'png')
             os.remove(imageName)
             imageName = os.path.normpath(SLiB_tmp + '/tempPreview.png')
 
     SLiB_OverlayImage(imageName)
+    print(f'SLiB >> Overlay image: {imageName}')
 
 def SLiB_PlayBlast():
     oldAA = cmds.getAttr('hardwareRenderingGlobals.lineAAEnable')

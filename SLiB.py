@@ -75,7 +75,23 @@ def setPath():
     else:
         cmds.warning('SLiB Folder not set?!')
         sys.exit()
+def create_default_folders(libPath):
+    categories = ['SHADER', 'OBJECTS', 'LIGHTS', 'HDRI', 'TEXTURES', 'PATHS']
+    
+    for category in categories:
+        newDir = os.path.normpath(libPath + category + '/default')
         
+        # Check if the directory already exists
+        if os.path.isdir(newDir):
+            print(f"Category {category} already has a 'default' folder.")
+            continue
+
+        # Create the directory and any necessary subdirectories
+        cmds.sysFile(newDir, makeDir=True)
+        cmds.sysFile(os.path.join(newDir, '_SUB'), makeDir=True)
+        
+        # Log the creation of the directory
+        print(f"Default folder for {category} created at {newDir}.")        
 def setup(libPath):
     try:
         if libPath and os.path.isdir(libPath):
@@ -87,6 +103,8 @@ def setup(libPath):
             f = open(os.path.dirname(cmds.pluginInfo('SLiB', q=1, path=1)) + '/SLiB.env', 'w')
             f.write(mel.eval('getenv SLiBLib;'))
             f.close()
+            create_default_folders(libPath)
+            
     except:
         cmds.warning('SLiB.env not created! Check file write permission on Maya plugin folder.')
         

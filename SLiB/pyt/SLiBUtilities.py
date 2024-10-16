@@ -451,8 +451,7 @@ def renumber(root):
 
 def saveSettings():
     SLIBPrefs = []
-    maya_version = SLiB.gib('mayaVersion')
-    if int(maya_version) < 2017:
+    if int(gib('mayaVersion')) < 2017:
         docked = int(cmds.menuItem('dockMenu', q=1, cb=1))
     else:
         docked = int(1)
@@ -491,8 +490,7 @@ def dockUI():
 def loadSettings():
     p = [line.rstrip('\n') for line in open(os.path.join(mel.eval('getenv SLiB;'), 'set', 'windowPrefs.txt'))]
     
-    maya_version = SLiB.gib('mayaVersion')
-    if int(maya_version) < 2017:
+    if int(gib('mayaVersion')) < 2017:
         cmds.menuItem('dockMenu', e=1, cb=int(p[0]))
     cmds.textField('SLiB_CBOX_Resolution', e=1, tx=int(p[1]))
     cmds.menuItem('importREF' , e=1, cb=int(p[2]))
@@ -511,8 +509,7 @@ def loadSettings():
 
     print('SLiB >>> Browser PRO Settings found and applied')
 
-    maya_version = SLiB.gib('mayaVersion')
-    if int(maya_version) < 2017:
+    if int(gib('mayaVersion')) < 2017:
         if cmds.menuItem('dockMenu', q=1, cb=1):
             dockUI()
             print('SLiB >>> Browser PRO Window docked\n', end=' ')
@@ -604,7 +601,6 @@ def swatchWin(mat):
     swatchWin = swatchWidget(mat, viewWidget)
     swatchWin.move(0, viewWidget.geometry().height() / 4)
     swatchWin.show()
-    
 class swatchWidget(QtWidgets.QWidget):
     def __init__(self, mat, *args, **kwargs):
         QtWidgets.QWidget.__init__(self, *args, **kwargs)
