@@ -29,6 +29,7 @@ import urllib.request, urllib.error, urllib.parse
 import pymel.core as pm
 import Qt
 import _thread
+import errno
 
 import SLiBUtilities as SLiB
 import importlib
@@ -734,6 +735,12 @@ def SLiB_ExportMeta(file, mainMat):
     version = SLiB.gib('mayaVersion')
     
     renderer = SLiB.gib('renderer').upper()
+    if renderer == 'VRAY':
+        num = maya.mel.eval("getAttr vraySettings.productionEngine")
+        if num == 2 or num == 3:
+            renderer == 'VRAY-GPU'
+        else:
+            renderer = 'VRAY-CPU'
     
     if SLiB.gib('mainCat') == 'objects' or SLiB.gib('mainCat') == 'lights':
         size = SLiB.gibBBox(selection)[0] + ' x ' + SLiB.gibBBox(selection)[1]  + ' x ' +  SLiB.gibBBox(selection)[2]
@@ -2823,7 +2830,7 @@ def SLiBBrowserUI():
 
     #META REND
     cmds.optionMenu('meta_renderer', p='slib_renderer_OB')
-    for e in ['arnold', 'mayasoftware', 'mayahardware', 'mayahardware2', 'mentalray' , 'redshift', 'vray', ]:
+    for e in ['arnold', 'mayasoftware', 'mayahardware', 'mayahardware2', 'mentalray' , 'redshift', 'vray-cpu', 'vray-gpu', ]:
         cmds.menuItem(l=e.upper())
     cmds.menuItem(l='N/A')
     cmds.optionMenu('meta_renderer', e=1, v=SLiB.gib('renderer').upper())
@@ -3252,7 +3259,7 @@ def SLiB_CreatePreview():
             if os.path.isfile(meta):
                 lines = [line.rstrip('\n') for line in open(meta)]
                 renderer = lines[5].lower()
-                if not renderer in ['arnold', 'mentalray', 'redshift', 'vray']:
+                if not renderer in ['arnold', 'mentalray', 'redshift', 'vray', 'vray-gpu', 'vray-cpu']:
                     SLiB.messager('Render Engine not supported for [ ' + os.path.basename(e) + ' ]', 'yellow')
                     print('Render Engine not supported for [ ' + os.path.basename(e) + ' ]')
                     cbxList.remove(e)
@@ -3340,7 +3347,15 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
         print(f'SLiB >> Reading meta file: {meta}')
         lines = [line.rstrip('\n') for line in open(meta)]
         renderer = lines[5].lower()
+        hardware = 'cpu'
+        varyHardware = False
         print(f'SLiB >> Renderer identified: {renderer}')
+        if renderer == 'vray-gpu' or renderer == 'vray-cpu':
+            if renderer == 'vray-gpu':
+                hardware = 'gpu'
+            renderer = 'vray'
+            varyHardware = True
+            
 
         # Clean up temporary files
         print('SLiB >> Cleaning up temporary preview files')
@@ -3353,7 +3368,10 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
                 print(f'SLiB >> File not found, skipping: {temp_file_path}')
         
         tempFile = SLiBTempStore + '/temp_preview_' + type
-        sceneFile = SLiBDir + '/scn/' + renderer + '_SLiB_preview_' + type + '_0' + mode + '.ma'
+        if varyHardware:
+            sceneFile = SLiBDir + '/scn/' + renderer + '-' + hardware + '_SLiB_preview_' + type + '_0' + mode + '.ma'
+        else:
+            sceneFile = SLiBDir + '/scn/' + renderer + '_SLiB_preview_' + type + '_0' + mode + '.ma'
         print(f'SLiB >> Temporary file: {tempFile}, Scene file: {sceneFile}')
         
         # Copy item to temporary file
@@ -3364,8 +3382,9 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
         RenderComLoc = mel.eval('getenv "MAYA_LOCATION"') + '/bin'
         print(f'SLiB >> Render command location: {RenderComLoc}')
         render_executable = os.path.join(RenderComLoc, "render")
-        if platform.system() == 'win32' or platform.system() == 'Windows':
-            print('SLiB >> Detected platform: Windows')
+        system_platform = platform.system().lower()
+        if system_platform in ['win32', 'windows']:
+            print('SLiB >> Processing for Windows platform')
             if renderer == 'mentalray':
                 command = [
                     render_executable,
@@ -3376,7 +3395,7 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
                     sceneFile,
                     "-log", f"{tempFile}_log.txt"
                 ]
-            else:            
+            else:
                 command = [
                     render_executable,
                     "-r", renderer,
@@ -3385,24 +3404,48 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
                     sceneFile,
                     "-log", f"{tempFile}_log.txt"
                 ]
-            print(f'SLiB >> Render command: {" ".join(command)}')
-            subprocess.call(command, shell=True)
-
-        elif platform.system() == 'darwin' or platform.system() == 'Darwin':
-            print('SLiB >> Detected platform: macOS')
+            render_command = ' '.join(f'"{arg}"' if ' ' in arg else arg for arg in command)
+            print(f'SLiB >> Render command: {render_command}')
+            
+            # Write the command to a batch file in SLiBTempStore
+            batch_file_path = os.path.join(SLiBTempStore, f"render_{selItem}.bat")
+            try:
+                os.remove(batch_file_path)
+            except OSError as e: # this would be "except OSError, e:" before Python 2.6
+                if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
+                    raise # re-raise exception if a different error occurred
+            print(f'SLiB >> Writing render command to batch file: {batch_file_path}')
+            try:
+                with open(batch_file_path, 'w') as batch_file:
+                    batch_file.write(f'@echo off\n{render_command}\n')
+                print(f'SLiB >> Executing batch file: {batch_file_path}')
+                subprocess.call(batch_file_path, shell=True)
+            except Exception as e:
+                print(f'SLiB >> Failed to create or execute batch file {batch_file_path}: {e}')
+        
+        elif system_platform == 'darwin':
+            print('SLiB >> Processing for macOS platform')
             if renderer == 'mentalray':
-                command = f'{RenderComLoc}/Render -r mr -v 5 -cam "{cam}" -rd {imageFile} {sceneFile}'
-            else:            
-                command = f'{RenderComLoc}/Render -r {renderer} -cam {cam} -rd {imageFile} {sceneFile}'
+                command = f'{os.path.join(RenderComLoc, "Render")} -r mr -v 5 -cam "{cam}" -rd "{imageFile}" "{sceneFile}"'
+            else:
+                command = f'{os.path.join(RenderComLoc, "Render")} -r {renderer} -cam "{cam}" -rd "{imageFile}" "{sceneFile}"'
             print(f'SLiB >> Render command: {command}')
             
-            batchName = os.path.join(SLiBDir, 'scn', 'RenderPreviews.sh')
-            print(f'SLiB >> Creating batch file: {batchName}')
-            with open(batchName, "w") as batchFile:
-                batchFile.write("#!/bin/bash\n")
-                batchFile.write(command)
-            os.system("chmod 755 " + batchName)
-            subprocess.call(batchName)
+            # Write the command to a shell script in SLiBTempStore
+            shell_file_path = os.path.join(SLiBTempStore, f"render_{selItem}.sh")
+            print(f'SLiB >> Writing render command to shell script: {shell_file_path}')
+            try:
+                with open(shell_file_path, 'w') as shell_file:
+                    shell_file.write(f'#!/bin/bash\n{command}\n')
+                os.chmod(shell_file_path, 0o755)
+                print(f'SLiB >> Executing shell script: {shell_file_path}')
+                subprocess.call(shell_file_path, shell=True)
+            except Exception as e:
+                print(f'SLiB >> Failed to create or execute shell script {shell_file_path}: {e}')
+        
+        else:
+            print(f'SLiB >> Unsupported platform: {system_platform}. Skipping rendering for this item.')
+            continue  # Skip unsupported platforms
 
         SLiB_SwapImage(selShaderPreview, renderer)
         print(f'SLiB >> Swapped image for: {selShaderPreview}')
