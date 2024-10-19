@@ -1,69 +1,42 @@
-on:[push()]
 name: 'Smelly Python: Smell My PR'
-description: 'Post a summary of pylint report as a comment on PRs.'
+on: [push]
+description: 'Generate and upload a pylint report as an artifact.'
 branding:
   icon: 'message-square'
   color: 'orange'
-inputs:
-  command:
-    description: The command to run smelly-python. 
-    required: true
-    default: pipenv run smelly-python -d src
-  github-token:
-    description: Github token
-    required: true
-    default: ''
-  install-pipenv: 
-    description: Specify whether pipenv should still be installed
-    required: false
-    default: true
-runs:
-  using: 'composite'
-  steps:
-    - name: Install pipenv
-      run: |
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install pipenv
+        if: ${{ inputs.install-pipenv }}
+        run: |
           sudo apt-get update
           sudo -H pip install -U pipenv
-    - name: Setup smelly-python
-      run: | 
+
+      - name: Setup smelly-python
+        run: | 
           pip install smelly-python
           pip install bs4
           pip install pylint 
-    # Generate report
-    - name: Generate report from smelly-python
-      shell: bash
-      run: ${{ inputs.command }}
-    - name: Save output folder with html report
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: smelly-python-html-report
-        path: |
-          ${{ github.workspace }}/report/smelly_python/**/*
-          !${{ github.workspace }}/report/smelly_python/**/*.md
-    - name: Set job summary
-      if: always()
-      shell: bash
-      run: cat ${{ github.workspace }}/report/smelly_python/comment.md >> $GITHUB_STEP_SUMMARY
-    - name: Get PR number
-      if: always()
-      shell: bash
-      env:
-        GH_TOKEN: ${{ inputs.github-token }}
-      run: echo "pr_number=`gh pr view ${GITHUB_REF_NAME} --json number -q '.number'`" >> $GITHUB_ENV
-    - name: Delete old comments
-      if: ${{ always() && env.pr_number != '' }}
-      uses: maheshrayas/action-pr-comment-delete@v1
-      with:
-          github_token: ${{ inputs.github-token }}
-          org: ${{ github.repository_owner }}
-          repo: ${{ github.event.repository.name}}
-          user: github-actions[bot] #commented by the userid
-          issue: ${{ env.pr_number }}
-    - name: Post comment
-      if: ${{ always() && env.pr_number != '' }}
-      shell: bash
-      env:
-        GH_TOKEN: ${{ inputs.github-token }}
-      run: gh pr comment ${GITHUB_REF_NAME} -F ${{ github.workspace }}/report/smelly_python/comment.md
 
+      - name: Generate report from smelly-python
+        shell: bash
+        run: pipenv smelly-python -d .
+
+      - name: Save output folder with HTML report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: smelly-python-html-report
+          path: |
+            ${{ github.workspace }}/report/smelly_python/**/*
+            !${{ github.workspace }}/report/smelly_python/**/*.md
+
+      - name: Set job summary
+        if: always()
+        shell: bash
+        run: cat ${{ github.workspace }}/report/smelly_python/comment.md >> $GITHUB_STEP_SUMMARY
