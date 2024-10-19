@@ -37,14 +37,14 @@ The SLiB Browser was a valuable tool for many Maya users, but it has become aban
 ### Prerequisites
 
 - Autodesk Maya (preferably version 2025 for the updated branch)
-- Python (compatible with your Maya version)
+- Python (compatible with your Maya version if you want to do any debugging/development)
 
 ### Steps
 
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/SLiB_Browser_PRO_2.0.git
+   git clone https://github.com/ryakra/SLiB_Browser_PRO_2.0.git
    ```
 
 2. **Checkout the Desired Branch**
@@ -63,7 +63,7 @@ The SLiB Browser was a valuable tool for many Maya users, but it has become aban
 
 3. **Set Up in Maya**
 
-   - Copy the SLiB Browser files to your Maya scripts directory.
+   - Copy the SLiB Browser files to your Maya plug-ins directory.
    - Ensure that Python paths are correctly set if using the updated version.
 
 ## Usage
