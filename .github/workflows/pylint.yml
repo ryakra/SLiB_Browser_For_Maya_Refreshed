@@ -22,7 +22,7 @@ jobs:
 
       - name: Generate report from smelly-python
         shell: bash
-        run: pipenv run smelly-python -d .
+        run: smelly-python -d .
 
       - name: Save output folder with HTML report
         if: always()
