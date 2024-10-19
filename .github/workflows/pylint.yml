@@ -16,7 +16,7 @@ jobs:
 
       - name: Setup smelly-python
         run: | 
-          pip install smelly-python
+          pip install git+https://github.com/NathanCFoster/smelly-python.git@fix/16
           pip install bs4
           pip install pylint 
 
