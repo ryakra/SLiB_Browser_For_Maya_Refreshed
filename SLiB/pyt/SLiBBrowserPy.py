@@ -32,6 +32,7 @@ import _thread
 import errno
 
 import SLiBUtilities as SLiB
+import Z3DVRHandler
 import importlib
 importlib.reload(SLiB)
 
@@ -603,9 +604,12 @@ def SLiB_ExportTex():
             if fileName != finalPath:
                 if os.path.isfile(fileName):
                     shutil.copy(fileName, textdestination)
+                    print(f'SLiB >> Copied from: {fileName} to {textdestination}')
                     if cmds.optionMenu('TexPathMode', q=1, v=1) == 'REL':
                         finalPath = SLiB_relPath(finalPath + '|' + t)
                     cmds.setAttr(t + SLiB.gibTexSlot(t), finalPath, type='string')
+                else:
+                    print(f'SLiB >> Couldnt Find: {fileName}')
         
         print('SLiB >> ' + str(len(expTEX)) + ' Texture(s) copied')
 
@@ -736,7 +740,7 @@ def SLiB_ExportMeta(file, mainMat):
     
     renderer = SLiB.gib('renderer').upper()
     if renderer == 'VRAY':
-        num = maya.mel.eval("getAttr vraySettings.productionEngine")
+        num = mel.eval("getAttr vraySettings.productionEngine")
         if num == 2 or num == 3:
             renderer == 'VRAY-GPU'
         else:
@@ -2654,6 +2658,8 @@ def SLiBBrowserUI():
     cmds.menuItem('slDownloader', l='Load from Store...', c=lambda *args: SLiB_Downloader())
     cmds.menuItem(d=1)
     cmds.menuItem('slConverter', l='vRayMAT to rsMAT (Alpha)', c=lambda *args: SLiB_Converter())
+    cmds.menuItem(d=1)
+    cmds.menuItem('z3dvrscene', l='VrayVRMat Tools (Alpha)', c=lambda *args: Z3DVRHandler.show_vrmat_shader_manager())
     
     cmds.menu('View', l='View', allowOptionBoxes=1, p='slMenuBar')
     cmds.menuItem('slSnapshotCam', l='Snapshot Framing', c=lambda *args: SLiB.snapshotCam(), cb=0)
@@ -2830,7 +2836,7 @@ def SLiBBrowserUI():
 
     #META REND
     cmds.optionMenu('meta_renderer', p='slib_renderer_OB')
-    for e in ['arnold', 'mayasoftware', 'mayahardware', 'mayahardware2', 'mentalray' , 'redshift', 'vray-cpu', 'vray-gpu', ]:
+    for e in ['arnold', 'mayasoftware', 'mayahardware', 'mayahardware2', 'mentalray' , 'redshift', 'vray-cpu', 'vray-gpu', 'vray' ]:
         cmds.menuItem(l=e.upper())
     cmds.menuItem(l='N/A')
     cmds.optionMenu('meta_renderer', e=1, v=SLiB.gib('renderer').upper())
