@@ -1,9 +1,6 @@
 name: 'Smelly Python: Smell My PR'
 on: [push]
-description: 'Generate and upload a pylint report as an artifact.'
-branding:
-  icon: 'message-square'
-  color: 'orange'
+
 jobs:
   build:
     runs-on: ubuntu-latest
