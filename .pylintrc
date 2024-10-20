@@ -1,2 +1,2 @@
-[tool.pylint.main]
-ignored-modules = ["maya.cmds", "maya.mel", "maya.OpenMaya", "maya.OpenMayaUI", "pymel.core", "pymel.core.datatypes", "shiboken6", "Qt"]
+[MASTER]
+ignored-modules = maya.cmds, maya.mel, maya.OpenMaya, maya.OpenMayaUI, pymel.core, pymel.core.datatypes, shiboken6, Qt
