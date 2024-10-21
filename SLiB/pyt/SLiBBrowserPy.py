@@ -950,25 +950,255 @@ def SLiB_UpdateMeta(mode):
                 SLiB.messager(str(mode).upper() + ' updated', 'green')
                 SLiB_OverlayImage(file + '.png')
 
-def SLiB_ZoomWin(item):
-    if cmds.window('SLiB_ZoomButton', ex=1):
-        cmds.deleteUI('SLiB_ZoomButton')
+class ZoomableGraphicsView(QtWidgets.QGraphicsView):
+    # Define a custom signal to communicate zoom changes
+    zoom_changed = QtCore.Signal(int, int)  # Emits desired width and height
+
+    def __init__(self, pixmap, parent=None):
+        super().__init__(parent)
+        self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform)
+
+        # Set up the scene
+        self.scene = QtWidgets.QGraphicsScene(self)
+        self.pixmap_item = self.scene.addPixmap(pixmap)
+        self.setScene(self.scene)
+
+        # Fit the image to the view initially
+        self.fitInView(self.pixmap_item, QtCore.Qt.KeepAspectRatio)
         
-    mayaMainWindow= wrapInstance(int(omui.MQtUtil.mainWindow()), QtWidgets.QWidget) 
-    icon = QtGui.QIcon(item)
-    button = QtWidgets.QPushButton(parent=mayaMainWindow)
-    button.setObjectName('SLiB_ZoomButton')
-    button.setFlat(True)
-    if SLiB.gib('mainCat') == 'hdri':
-        button.setFixedSize(QtCore.QSize(512*2, 512))
+        # Zoom parameters
+        self._zoom = 1.0
+        self._zoom_step = 0.1
+        self._zoom_max = 40.0  # Increased maximum zoom
+        self._zoom_min = 0.1    # Decreased minimum zoom to allow more zooming out
+
+        # Panning state
+        self._panning = False
+        self._pan_start = QtCore.QPoint()
+
+        # Enable focus to capture key events
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+        # Enable mouse tracking
+        self.setMouseTracking(True)
+
+        # Optional: Add a button to the scene (e.g., Close button)
+        self.add_close_button()
+
+    def add_close_button(self):
+        """Adds a Close button within the QGraphicsScene."""
+        # Create the button
+        self.close_button = QtWidgets.QPushButton("Close")
+        self.close_button.setFixedSize(80, 30)  # Set desired size
+
+        # Wrap the button as a QGraphicsProxyWidget
+        self.close_button_proxy = self.scene.addWidget(self.close_button)
+        self.close_button_proxy.setPos(10, 10)  # Position within the image
+
+        # Connect the button's clicked signal to close the parent window
+        self.close_button.clicked.connect(self.close_parent_window)
+
+    def close_parent_window(self):
+        """Closes the parent window when the close button is clicked."""
+        parent_window = self.parentWidget()
+        if isinstance(parent_window, QtWidgets.QMainWindow):
+            parent_window.close()
+
+    def wheelEvent(self, event):
+        """Handle zooming in and out with the mouse wheel."""
+        if event.angleDelta().y() == 0:
+            return
+
+        # Determine zoom direction
+        zoom_in = event.angleDelta().y() > 0
+        zoom_factor = 1 + self._zoom_step if zoom_in else 1 - self._zoom_step
+
+        # Calculate new zoom level
+        new_zoom = self._zoom * zoom_factor
+        if self._zoom_min <= new_zoom <= self._zoom_max:
+            self._zoom = new_zoom
+            self.scale(zoom_factor, zoom_factor)
+            self.adjust_window_size()
+        else:
+            # Optionally, provide feedback when zoom limits are reached
+            QtWidgets.QToolTip.showText(event.globalPos(), "Zoom limit reached")
+            event.ignore()
+
+    def mousePressEvent(self, event):
+        """Handle mouse press events for panning or left-click actions."""
+        if event.button() == QtCore.Qt.MiddleButton:
+            self._panning = True
+            self._pan_start = event.pos()
+            self.setCursor(QtCore.Qt.ClosedHandCursor)
+            event.accept()
+        elif event.button() == QtCore.Qt.LeftButton:
+            # Perform left-click action (e.g., close the window)
+            parent_window = self.parentWidget()
+            if isinstance(parent_window, QtWidgets.QMainWindow):
+                parent_window.close()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Handle mouse movement for panning."""
+        if self._panning:
+            # Calculate the change in position
+            delta = event.pos() - self._pan_start
+            self._pan_start = event.pos()
+
+            # Scroll the view accordingly
+            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """Handle mouse release events."""
+        if self._panning and event.button() == QtCore.Qt.MiddleButton:
+            self._panning = False
+            self.setCursor(QtCore.Qt.ArrowCursor)
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
+
+    def keyPressEvent(self, event):
+        """Handle key press events."""
+        # Remove spacebar handling as panning is now via middle mouse
+        super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        """Handle key release events."""
+        # Remove spacebar handling as panning is now via middle mouse
+        super().keyReleaseEvent(event)
+
+    def resizeEvent(self, event):
+        """Ensure the image scales appropriately when the window is resized."""
+        # Do not reset zoom level to avoid interfering with current zoom
+        super().resizeEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        """Handle double-click events (e.g., to reset zoom)."""
+        self.reset_view()
+        super().mouseDoubleClickEvent(event)
+
+    def reset_view(self):
+        """Reset the zoom and fit the image to the view."""
+        self.resetTransform()
+        self.fitInView(self.pixmap_item, QtCore.Qt.KeepAspectRatio)
+        self._zoom = 1.0
+        self.adjust_window_size()
+
+    def adjust_window_size(self):
+        """Adjust the window size based on the current zoom level."""
+        # Calculate the bounding rectangle of the pixmap after scaling
+        pixmap_rect = self.pixmap_item.boundingRect()
+        # Determine the size in scene coordinates after scaling
+        size = self.transform().mapRect(pixmap_rect).size()
+
+        # Optionally, add padding for window borders and title bar
+        padding_width = 20
+        padding_height = 40 + 50  # Additional space for buttons if necessary
+
+        # Desired new window size
+        new_width = int(size.width()) + padding_width
+        new_height = int(size.height()) + padding_height
+
+        # Emit the signal with desired width and height
+        self.zoom_changed.emit(new_width, new_height)
+   
+def SLiB_ZoomWin(item):
+    """
+    Opens a zoomable and pannable window displaying a PNG image corresponding to the given item.
+    
+    Args:
+        item (str): The file path to the .mb file. The corresponding .png image should exist with the same base name.
+    """
+
+
+    # Check if the input item exists
+    if not os.path.exists(item):
+        cmds.warning(f"File does not exist: {item}")
+        return
+    
+    # Replace '.mb' extension with '.png'
+    base, ext = os.path.splitext(item)
+    image_path = base + '.png'
+    
+    # Check if the corresponding .png image exists
+    if not os.path.exists(image_path):
+        cmds.warning(f"Corresponding PNG image does not exist: {image_path}")
+        return
+    
+    # Delete existing zoom window if it exists
+    if cmds.window('SLiB_ZoomWindow', exists=True):
+        cmds.deleteUI('SLiB_ZoomWindow')
+    
+    # Wrap Maya's main window for parenting
+    maya_main_window_ptr = omui.MQtUtil.mainWindow()
+    maya_main_window = wrapInstance(int(maya_main_window_ptr), QtWidgets.QWidget)
+    
+    # Create a new top-level window
+    zoom_window = QtWidgets.QMainWindow(maya_main_window)
+    zoom_window.setObjectName('SLiB_ZoomWindow')
+    zoom_window.setWindowTitle('Zoom Window')
+    zoom_window.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
+    
+    # Load the PNG image
+    pixmap = QtGui.QPixmap(image_path)
+    if pixmap.isNull():
+        cmds.warning(f"Failed to load image: {image_path}")
+        return
+    
+    # Create the zoomable graphics view
+    graphics_view = ZoomableGraphicsView(pixmap)
+    
+    # Set initial window size based on category
+    # Assuming SLiB.gib is a custom function; replace with actual logic as needed
+    # For demonstration, we'll set a default category check
+    category = 'hdri' if 'hdri' in base.lower() else 'default'
+    if category == 'hdri':
+        initial_width, initial_height = 1024, 512  # 512*2 x 512
     else:
-        button.setFixedSize(QtCore.QSize(512, 512))
-    button.setIconSize(button.size())
-    button.setIcon(icon)
-    button.clicked.connect(SLiB_ZoomWinClose)
-    button.setWindowFlags(Qt.Window)
-    button.setWindowFlags(QtCore.Qt.Tool|QtCore.Qt.FramelessWindowHint)
-    button.show()
+        initial_width, initial_height = 512, 512
+    
+    zoom_window.resize(initial_width, initial_height)
+    
+    # Set the central widget
+    zoom_window.setCentralWidget(graphics_view)
+    
+    # Define a slot to handle window resizing based on zoom changes
+    def on_zoom_changed(new_width, new_height):
+        # Capture the current center of the window before resizing
+        current_geometry = zoom_window.frameGeometry()
+        current_center = current_geometry.center()
+
+        # Define minimum and maximum window sizes
+        min_width, min_height = 300, 300  # Example minimum sizes
+        max_width, max_height = 1920, 1080  # Example maximum sizes
+
+        # Clamp the desired size within min and max limits
+        clamped_width = max(min_width, min(new_width, max_width))
+        clamped_height = max(min_height, min(new_height, max_height))
+
+        # Resize the window accordingly
+        zoom_window.resize(clamped_width, clamped_height)
+
+        # Adjust the window's geometry to keep the center consistent
+        new_geometry = zoom_window.frameGeometry()
+        new_geometry.moveCenter(current_center)
+        zoom_window.move(new_geometry.topLeft())
+    
+    # Connect the zoom_changed signal to the on_zoom_changed slot
+    graphics_view.zoom_changed.connect(on_zoom_changed)
+    
+    # Show the window
+    zoom_window.show()
+    
+    # Ensure the window is on top
+    zoom_window.raise_()
+
+
     
 def SLiB_ZoomWinClose():
     if cmds.window('SLiB_ZoomButton', ex=1):

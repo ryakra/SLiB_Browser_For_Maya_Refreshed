@@ -32,6 +32,10 @@ def SLiBSetupSM():
         if int(MAYA_VERSION) < 2017:
             cmds.menuItem(parent = 'SLiBMenu', l='SLiB Browser ...', c='import SLiBBrowserPy; SLiBBrowserPy.SLiBBrowserUI()') #MENU ENTRY
             cmds.shelfButton('browser', i=SLiBImage + 'shelf_browser.png', c='import SLiBBrowserPy; SLiBBrowserPy.SLiBBrowserUI()', p='SLiB') #SHELF BUTTON
+        elif int(MAYA_VERSION) >= 2022:
+            cmds.menuItem(parent = 'SLiBMenu', l='SLiB Browser ...', c='import SLiBBrowserPy; import importlib; importlib.reload(SLiBBrowserPy); SLiBBrowserPy.SLiBBrowserWorkspaceControl()') #MENU ENTRY
+            cmds.shelfButton('browser', i=SLiBImage + 'shelf_browser.png', c='import SLiBBrowserPy; import importlib; importlib.reload(SLiBBrowserPy); SLiBBrowserPy.SLiBBrowserWorkspaceControl()', p='SLiB') #SHELF BUTTON
+            
         else:
             cmds.menuItem(parent = 'SLiBMenu', l='SLiB Browser ...', c='import SLiBBrowserPy; SLiBBrowserPy.SLiBBrowserWorkspaceControl()') #MENU ENTRY
             cmds.shelfButton('browser', i=SLiBImage + 'shelf_browser.png', c='import SLiBBrowserPy; SLiBBrowserPy.SLiBBrowserWorkspaceControl()', p='SLiB') #SHELF BUTTON
