@@ -954,7 +954,7 @@ def SLiB_ZoomWin(item):
     if cmds.window('SLiB_ZoomButton', ex=1):
         cmds.deleteUI('SLiB_ZoomButton')
         
-    mayaMainWindow= wrapInstance(int(omui.MQtUtil.mainWindow()), Qt.QWidgets) 
+    mayaMainWindow= wrapInstance(int(omui.MQtUtil.mainWindow()), QtWidgets.QWidget) 
     icon = QtGui.QIcon(item)
     button = QtWidgets.QPushButton(parent=mayaMainWindow)
     button.setObjectName('SLiB_ZoomButton')
@@ -1495,14 +1495,7 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.menu.move(position.x() + 1, position.y() + 1)
         
     def mousePressEvent(self, event):
-        if event.button() == QtCore.Qt.LeftButton:
-            pass
-            
-        if event.button() == QtCore.Qt.MidButton:
-            pass
-            
-        if event.button() == QtCore.Qt.RightButton:
-            pass
+        pass
 
 class BackButton(QtWidgets.QPushButton):
     left_clicked = QtCore.Signal(int)
@@ -1788,6 +1781,7 @@ class ItemButton(QtWidgets.QPushButton):
             self.menu.addAction('COPY', self.menu_copy)
             self.menu.addSeparator()
             self.menu.addAction('DELETE', self.menu_delete)
+            self.menu.addAction('REPLACE PIC', self.replace_pic)
 
         self.menu.setStyleSheet("selection-background-color: #ffaa00; selection-color: black; background-color: #525252; border: 1px solid black; color: #EBEBEB; padding: 0px 0px 0px 0px;")
         #self.setMenu(self.menu)
@@ -1855,6 +1849,9 @@ class ItemButton(QtWidgets.QPushButton):
     
     def menu_delete(self):
         SLiB_BrowserDelete()
+    
+    def replace_pic(self):
+        SLiB_SwapImageManual()
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
@@ -2031,44 +2028,51 @@ class SLiBFlowLayout(QtWidgets.QWidget):
         modifiers = QtWidgets.QApplication.keyboardModifiers()
 
         if nb == 1:
-            #'Single left click
+            # Single left click
             buttonWidget = scroll.findChild(QWidget, item)
             checkbox = buttonWidget.findChild(QCheckBox, item)
             label = buttonWidget.findChild(QLabel, item)
-            
+
             if modifiers == QtCore.Qt.ShiftModifier:
                 if checkbox.isChecked():
-                    checkbox.setChecked(0)
+                    checkbox.setChecked(False)
                     label.setStyleSheet("padding: 2;")
                     cbxList.remove(item)
                 else:
-                    checkbox.setChecked(1)
+                    checkbox.setChecked(True)
                     label.setStyleSheet("background-color: #50b0ff; color: black; padding: 2;")
                     cbxList.append(item)
-            
-            if modifiers == QtCore.Qt.ControlModifier:
-                SLiB_ZoomWin(item)
-            
-            if modifiers == 0:
-                SLiB_BrowserMark('none')
 
-                checkbox.setChecked(1)
+            elif modifiers == QtCore.Qt.ControlModifier:
+                SLiB_ZoomWin(item)
+
+            elif modifiers == 0:
+                # Clear the previous selection
+                for c in cbxList:
+                    buttonWidget = scroll.findChild(QWidget, c)
+                    label = buttonWidget.findChild(QLabel, c)
+                    label.setStyleSheet("padding: 2;")
+                    checkbox = buttonWidget.findChild(QCheckBox, c)
+                    checkbox.setChecked(False)
+                
+                # Update current selection
+                cbxList.clear()
+                checkbox.setChecked(True)
                 label.setStyleSheet("background-color: #50b0ff; color: black; padding: 2;")
                 cbxList.append(item)
-                
+
             if cbxList:
                 for c in cbxList:
                     print(c + '\n')
                     buttonWidget = scroll.findChild(QWidget, c)
                     label = buttonWidget.findChild(QLabel, c)
                     if len(cbxList) > 1:
-                            label.setStyleSheet("background-color: #ff9c00; color: black; padding: 2;")
-                    
+                        label.setStyleSheet("background-color: #ff9c00; color: black; padding: 2;")
                     if len(cbxList) == 1:
-                            label.setStyleSheet("background-color: #50b0ff; color: black; padding: 2;")
+                        label.setStyleSheet("background-color: #50b0ff; color: black; padding: 2;")
 
             SLiB_UpdateInfo(item)
-        
+
         else:
             if SLiB.gib('mainCat') in ['textures', 'hdri']:
                 SLiB_BrowserImport('Texture', item)
@@ -3436,7 +3440,7 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
                     "-cam", cam,
                     "-rd", imageFile,
                     sceneFile,
-                    "-log", f"{tempFile}_log.txt"
+                    #"-log", f"{tempFile}_log.txt"
                 ]
             else:
                 command = [
@@ -3445,7 +3449,7 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
                     "-cam", cam,
                     "-rd", imageFile,
                     sceneFile,
-                    "-log", f"{tempFile}_log.txt"
+                    #"-log", f"{tempFile}_log.txt"
                 ]
             render_command = ' '.join(f'"{arg}"' if ' ' in arg else arg for arg in command)
             print(f'SLiB >> Render command: {render_command}')
@@ -3495,6 +3499,18 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
 
     cmds.evalDeferred(lambda: SLiB_ThreadEnd(previewCat))
     print(f'SLiB >> Completed preview render creation for category: {previewCat}')
+
+def SLiB_SwapImageManual():
+    if cbxList:
+        for item in cbxList:
+            selShaderPreview = os.path.splitext(item)[0] + '.png'
+            meta = os.path.splitext(item)[0] + '.meta'
+            print(f'SLiB >> Reading meta file: {meta}')
+            lines = [line.rstrip('\n') for line in open(meta)]
+            renderer = lines[5].lower()
+            SLiB_SwapImage(selShaderPreview,renderer)
+    cmds.evalDeferred(lambda: SLiB_UpdateView())
+
 
 def SLiB_UpdateBatch(item, selItem, batchList):
     i = batchList.index(item) + 1
