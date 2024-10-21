@@ -580,24 +580,36 @@ def SLiB_ExportObject(newShaderName, shapesInSel):
 
 def SLiB_ExportTex():
     expTEX = SLiB_TexList()
-    if expTEX:
-        print('SLiB >> ' + str(len(expTEX)) + ' Texture(s) found')
+    vray_vrmat_nodes = []
+
+    # Find VRayVRmatMtl nodes connected to selected shapes
+    if cmds.ls(sl=1):
+        shapes = cmds.ls(cmds.listRelatives(ad=1), type='shape')
+        if shapes:
+            shadingGroups = cmds.listConnections(shapes, type='shadingEngine')
+            if shadingGroups:
+                vray_vrmat_nodes = cmds.ls(cmds.listConnections(shadingGroups, s=1), type='VRayVRmatMtl')
+
+    if expTEX or vray_vrmat_nodes:
+        print(f'SLiB >> {len(expTEX)} Texture(s) and {len(vray_vrmat_nodes)} VRayVRmatMtl node(s) found')
+
         if cmds.optionMenu('exportTEX', q=1, v=1) == 'with custom Texture Folder':
-            textdestination =  os.path.normpath(cmds.textField('SLiB_TEXTFIELD_Texpath', q=1, tx=1))
+            textdestination = os.path.normpath(cmds.textField('SLiB_TEXTFIELD_Texpath', q=1, tx=1))
             if len(textdestination) > 1 and os.path.isdir(textdestination):
                 pass
             else:
                 SLiB.messager('Please specify custom Texture Folder!', 'red')
+                return
         else:
-            textdestination =  SLiB.gib('currLocation') + '/' + SLiB.gib('name') + '/Tex'
+            textdestination = SLiB.gib('currLocation') + '/' + SLiB.gib('name') + '/Tex'
             if not os.path.isdir(textdestination):
                 os.mkdir(textdestination)
                 print('SLiB >> TEX folder created')
-                
+
+        # Copy textures
         for t in expTEX:
             fileName = os.path.normpath(cmds.getAttr(t + SLiB.gibTexSlot(t)))
             fileName = SLiB_absPath(fileName)
-            
             finalPath = os.path.normpath(os.path.join(textdestination, os.path.basename(fileName)))
             
             if fileName != finalPath:
@@ -609,8 +621,34 @@ def SLiB_ExportTex():
                     cmds.setAttr(t + SLiB.gibTexSlot(t), finalPath, type='string')
                 else:
                     print(f'SLiB >> Couldnt Find: {fileName}')
-        
-        print('SLiB >> ' + str(len(expTEX)) + ' Texture(s) copied')
+
+        # Handle VRayVRmatMtl nodes
+        for vrmat_node in vray_vrmat_nodes:
+            vrmat_file = cmds.getAttr(f"{vrmat_node}.fileName")
+            if vrmat_file and os.path.isfile(vrmat_file):
+                vrmat_file = os.path.normpath(vrmat_file)
+                vrmat_dest = os.path.join(textdestination, os.path.basename(vrmat_file))
+
+                # Only copy the VRmat file if the paths are different
+                if vrmat_file != vrmat_dest:
+                    shutil.copy(vrmat_file, vrmat_dest)
+                    print(f'SLiB >> Copied VRmat from: {vrmat_file} to {vrmat_dest}')
+                else:
+                    print(f'SLiB >> VRmat file already in destination: {vrmat_dest}')
+
+                # Update the VRmat file paths
+                Z3DVRHandler.batch_move_textures_and_update_vrscene(vrmat_dest, textdestination)
+
+                # Update the VRmat node file path based on settings
+                if cmds.optionMenu('TexPathMode', q=1, v=1) == 'REL':
+                    final_path = SLiB_relPath(vrmat_dest)
+                else:
+                    final_path = vrmat_dest
+
+                cmds.setAttr(f"{vrmat_node}.fileName", final_path, type='string')
+                print(f'SLiB >> Updated VRmat node path to: {final_path}')
+
+        print(f'SLiB >> {len(expTEX)} Texture(s) and {len(vray_vrmat_nodes)} VRayVRmatMtl node(s) processed')
 
 def SLiB_ExportTextures(x):
     if SLiB.gib('currLocation') != None and SLiB.gib('currLocation') != os.path.normpath(mel.eval('getenv SLiBRARY;') + SLiB.gib('mainCat')):
@@ -2518,7 +2556,7 @@ def SLiBBrowserWorkspaceControl():
         
     global slBrowserUI
     slBrowserUI = cmds.loadUI(f=SLiB_gui + 'SLiBBrowser.ui')
-    cmds.workspaceControl(WorkspaceName, l='SLiB Browser Pro v2.0' )
+    cmds.workspaceControl(WorkspaceName, l='Asset Browser' )
     cmds.control(slBrowserUI, e=1, p=WorkspaceName)
     SLiBBrowserUI()
 
@@ -3413,7 +3451,7 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
             print(f'SLiB >> Render command: {render_command}')
             
             # Write the command to a batch file in SLiBTempStore
-            batch_file_path = os.path.join(SLiBTempStore, f"render_{selItem}.bat")
+            batch_file_path = os.path.join(SLiBTempStore, f"render.bat")
             try:
                 os.remove(batch_file_path)
             except OSError as e: # this would be "except OSError, e:" before Python 2.6

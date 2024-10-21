@@ -106,11 +106,8 @@ def replace_shaders_with_vrmat(vrmat_file):
     scene_materials = cmds.ls(materials=True)
 
     # Get selectable values from the VRmat file
-    if is_vrmat:
-        vrmat_materials = get_vray_vrmat_selectable_values_from_file(vrmat_file)
-    else:
-        vrmat_materials = [vrmat_file]  # For VRscene, use the file directly
-
+    
+    vrmat_materials = get_vray_vrmat_selectable_values_from_file(vrmat_file)
     for scene_mat in scene_materials:
         for vrmat_mat in vrmat_materials:
             # Match the scene material name with the VRmat material name
@@ -118,7 +115,7 @@ def replace_shaders_with_vrmat(vrmat_file):
                 # Create a new VRayVRmatMtl shader
                 vrmat_shader = cmds.shadingNode('VRayVRmatMtl', asShader=True, name=f"{scene_mat}_VRmat")
                 cmds.setAttr(f"{vrmat_shader}.fileName", vrmat_file, type="string")
-
+                print(f"FOUND: {scene_mat} | {vrmat_mat}")
                 # Set the correct selectable value
                 set_current_selection(vrmat_shader, vrmat_mat)
 
@@ -275,6 +272,51 @@ def move_textures_and_update_vrscene(vrscene_file):
             texture_filename = os.path.basename(texture)
             new_texture_path = os.path.join(dest_folder, texture_filename)
             shutil.copy(texture, new_texture_path)
+
+            # Update the texture path in the .vrscene file
+            relative_texture_path = os.path.relpath(new_texture_path, dest_folder)
+            modify_texture_file_path(new_vrscene_path, texture, relative_texture_path)
+
+            print(f"Copied and updated texture path: {texture} -> {relative_texture_path}")
+
+        except Exception as e:
+            print(f"Failed to copy texture '{texture}': {e}")
+
+def batch_move_textures_and_update_vrscene(vrscene_file, dest_folder):
+    """
+    Automatically move textures referenced in a .vrscene file to a specified folder and update paths.
+
+    :param vrscene_file: The path to the .vrscene file.
+    :param dest_folder: The destination folder for the .vrscene and textures.
+    """
+    if not os.path.isdir(dest_folder):
+        os.makedirs(dest_folder)
+        print(f"Created destination folder: {dest_folder}")
+
+    # Extract texture files from the .vrscene file
+    texture_files = extract_texture_files_from_vrscene(vrscene_file)
+    if not texture_files:
+        print("No texture files found in the vrscene.")
+        return
+
+    # Define the new path for the .vrscene file
+    vrscene_filename = os.path.basename(vrscene_file)
+    new_vrscene_path = os.path.join(dest_folder, vrscene_filename)
+
+    # Only copy the .vrscene file if the paths are different
+    if os.path.normpath(vrscene_file) != os.path.normpath(new_vrscene_path):
+        shutil.copy(vrscene_file, new_vrscene_path)
+        print(f"Copied VRscene file to: {new_vrscene_path}")
+    else:
+        print(f"VRscene file already in destination: {new_vrscene_path}")
+
+    # Copy textures to the destination folder and update their paths in the .vrscene file
+    for texture in texture_files:
+        try:
+            texture_filename = os.path.basename(texture)
+            new_texture_path = os.path.join(dest_folder, texture_filename)
+            if os.path.normpath(texture) != os.path.normpath(new_texture_path):
+                shutil.copy(texture, new_texture_path)
 
             # Update the texture path in the .vrscene file
             relative_texture_path = os.path.relpath(new_texture_path, dest_folder)
