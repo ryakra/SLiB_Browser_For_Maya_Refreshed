@@ -111,7 +111,6 @@ def SLiB_BrowserImport(mode, item):
                     cmds.setAttr(fileNode + '.fileTextureName', item, type = 'string')
                     cmds.rename(fileNode, 'SLiB_Dome_file')
                     SLiB.messager('IMPORT successful!', 'green')
-                    SLiB_FileColorMgt(fileNode)
         
             #DOME LIGHT
             if not cmds.objExists('SLiB_Dome'):
@@ -917,7 +916,7 @@ def SLiB_ZoomWin(item):
     if cmds.window('SLiB_ZoomButton', ex=1):
         cmds.deleteUI('SLiB_ZoomButton')
         
-    mayaMainWindow= wrapInstance(int(omui.MQtUtil.mainWindow()), QWidgets) 
+    mayaMainWindow= wrapInstance(int(omui.MQtUtil.mainWindow()), Qt.QWidgets) 
     icon = QtGui.QIcon(item)
     button = QtWidgets.QPushButton(parent=mayaMainWindow)
     button.setObjectName('SLiB_ZoomButton')
@@ -4529,13 +4528,16 @@ def SLiB_About():
 
     cmds.window('slAbout', t=' ', sizeable=0)
     cmds.columnLayout('aboutWinLayout', w=256, adj=1, bgc=[0.18,0.18,0.18], p='slAbout')
-    cmds.text(l='BROWSER PRO 2.0', w=256, h=50, p='aboutWinLayout')
+    cmds.text(l='ORIGINAL CODE: BROWSER PRO 2.0', w=256, h=50, p='aboutWinLayout')
     cmds.text(l='by', w=256, p='aboutWinLayout')
     cmds.image(w=250, h=100, i=SLiB_img + 'dgdm.png', p='aboutWinLayout')
     cmds.text(l='', w=256, h=20, p='aboutWinLayout')
     cmds.text(l='And very special thanks to\n Kornelis van der Bij\n for helping with UI, Functionality,\n Design and Help Documentation', w=256, h=50, p='aboutWinLayout')
     cmds.text(l='', w=256, h=20, p='aboutWinLayout')
     cmds.text(l='www.store.cgfront.com', w=256, h=50, p='aboutWinLayout', hl=1)
+    cmds.text(l='', w=256, h=20, p='aboutWinLayout')
+    cmds.text(l='Updated to modern versions by:', w=256, h=50, p='aboutWinLayout', hl=1)
+    cmds.text(l='Ryan Kramer | ryankramer3d.art', w=256, h=50, p='aboutWinLayout', hl=1)
 
     cmds.showWindow('slAbout')
     cmds.window('slAbout', e=1, w=256, h=320)
