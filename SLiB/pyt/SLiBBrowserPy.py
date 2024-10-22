@@ -3670,7 +3670,6 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
                     "-cam", cam,
                     "-rd", imageFile,
                     sceneFile,
-                    #"-log", f"{tempFile}_log.txt"
                 ]
             else:
                 command = [
@@ -3679,26 +3678,22 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
                     "-cam", cam,
                     "-rd", imageFile,
                     sceneFile,
-                    #"-log", f"{tempFile}_log.txt"
                 ]
             render_command = ' '.join(f'"{arg}"' if ' ' in arg else arg for arg in command)
             print(f'SLiB >> Render command: {render_command}')
             
-            # Write the command to a batch file in SLiBTempStore
-            batch_file_path = os.path.join(SLiBTempStore, f"render.bat")
+            # Execute the command and capture output live
             try:
-                os.remove(batch_file_path)
-            except OSError as e: # this would be "except OSError, e:" before Python 2.6
-                if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
-                    raise # re-raise exception if a different error occurred
-            print(f'SLiB >> Writing render command to batch file: {batch_file_path}')
-            try:
-                with open(batch_file_path, 'w') as batch_file:
-                    batch_file.write(f'@echo off\n{render_command}\n')
-                print(f'SLiB >> Executing batch file: {batch_file_path}')
-                subprocess.call(batch_file_path, shell=True)
+                process = subprocess.Popen(render_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                for line in iter(process.stdout.readline, ''):
+                    print(line, end='')  # Print each line as it is produced
+                for line in iter(process.stderr.readline, ''):
+                    print(line, end='')  # Print error lines as they are produced
+                process.stdout.close()
+                process.stderr.close()
+                process.wait()
             except Exception as e:
-                print(f'SLiB >> Failed to create or execute batch file {batch_file_path}: {e}')
+                print(f'SLiB >> Failed to execute render command: {e}')
         
         elif system_platform == 'darwin':
             print('SLiB >> Processing for macOS platform')
@@ -3708,17 +3703,18 @@ def SLiB_CreatePreviewRender(previewCat, mode, cam, type):
                 command = f'{os.path.join(RenderComLoc, "Render")} -r {renderer} -cam "{cam}" -rd "{imageFile}" "{sceneFile}"'
             print(f'SLiB >> Render command: {command}')
             
-            # Write the command to a shell script in SLiBTempStore
-            shell_file_path = os.path.join(SLiBTempStore, f"render_{selItem}.sh")
-            print(f'SLiB >> Writing render command to shell script: {shell_file_path}')
+            # Execute the command and capture output live
             try:
-                with open(shell_file_path, 'w') as shell_file:
-                    shell_file.write(f'#!/bin/bash\n{command}\n')
-                os.chmod(shell_file_path, 0o755)
-                print(f'SLiB >> Executing shell script: {shell_file_path}')
-                subprocess.call(shell_file_path, shell=True)
+                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                for line in iter(process.stdout.readline, ''):
+                    print(line, end='')  # Print each line as it is produced
+                for line in iter(process.stderr.readline, ''):
+                    print(line, end='')  # Print error lines as they are produced
+                process.stdout.close()
+                process.stderr.close()
+                process.wait()
             except Exception as e:
-                print(f'SLiB >> Failed to create or execute shell script {shell_file_path}: {e}')
+                print(f'SLiB >> Failed to execute render command: {e}')
         
         else:
             print(f'SLiB >> Unsupported platform: {system_platform}. Skipping rendering for this item.')

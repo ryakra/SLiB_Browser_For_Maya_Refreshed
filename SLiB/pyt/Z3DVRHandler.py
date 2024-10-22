@@ -95,8 +95,8 @@ def replace_shaders_with_vrmat(vrmat_file):
     :param vrmat_file: The path to the VRmat or VRscene file.
     """
     # Determine if the file is VRmat or VRscene
-    is_vrmat = vrmat_file.endswith('.vrmat')
-    is_vrscene = vrmat_file.endswith('.vrscene')
+    is_vrmat = vrmat_file.lower().endswith('.vrmat')
+    is_vrscene = vrmat_file.lower().endswith('.vrscene')
 
     if not (is_vrmat or is_vrscene):
         print("Unsupported file type. Please select a .vrmat or .vrscene file.")
@@ -106,12 +106,12 @@ def replace_shaders_with_vrmat(vrmat_file):
     scene_materials = cmds.ls(materials=True)
 
     # Get selectable values from the VRmat file
-    
     vrmat_materials = get_vray_vrmat_selectable_values_from_file(vrmat_file)
     for scene_mat in scene_materials:
+        scene_mat_lower = scene_mat.lower()  # Convert scene material name to lowercase
         for vrmat_mat in vrmat_materials:
-            # Match the scene material name with the VRmat material name
-            if scene_mat in vrmat_mat:
+            vrmat_base_lower = vrmat_mat.split('@')[0].lower()  # Extract base name and lowercase
+            if scene_mat_lower == vrmat_base_lower:
                 # Create a new VRayVRmatMtl shader
                 vrmat_shader = cmds.shadingNode('VRayVRmatMtl', asShader=True, name=f"{scene_mat}_VRmat")
                 cmds.setAttr(f"{vrmat_shader}.fileName", vrmat_file, type="string")
@@ -126,7 +126,7 @@ def replace_shaders_with_vrmat(vrmat_file):
                     cmds.connectAttr(f"{vrmat_shader}.outColor", f"{shading_group[0]}.surfaceShader", force=True)
 
                 print(f"Replaced '{scene_mat}' with '{vrmat_shader}' and selected '{vrmat_mat}'.")
-
+    
     # If the file is a .vrscene, extract and handle texture files
     if is_vrscene:
         texture_files = extract_texture_files_from_vrscene(vrmat_file)
